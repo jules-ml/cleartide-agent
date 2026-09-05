@@ -1,0 +1,16 @@
+annotated-types==0.8.0
+cloudpickle==3.1.2
+joblib==1.6.0
+narwhals==2.25.0
+numpy==2.5.2
+pandas==3.0.5
+pydantic==2.13.5
+pydantic_core==2.46.5
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.3
+scikit-learn==1.9.0
+scipy==1.18.1
+six==1.17.0
+threadpoolctl==3.6.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0
