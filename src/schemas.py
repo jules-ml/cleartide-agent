@@ -165,8 +165,8 @@ class ProposedAction(BaseModel):
     """
     Action proposed by the agent before deterministic validation.
 
-    This object is intentionally separate from FinalAction because
-    the LLM is not allowed to directly authorize execution.
+    The language model proposes an action.
+    It does NOT authorize execution.
     """
 
     action_type: ActionType
@@ -174,6 +174,19 @@ class ProposedAction(BaseModel):
     target_channel: Optional[Channel] = None
 
     message_body: Optional[str] = None
+
+    payment_plan_duration_days: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description="Requested payment-plan duration in days."
+    )
+
+    payment_plan_down_payment_pct: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Required down payment expressed as a decimal."
+    )
 
     rationale: str
 
@@ -189,7 +202,6 @@ class ProposedAction(BaseModel):
     risk_band: RiskBand
 
     policy_version: str
-
 
 # ============================================================
 # POLICY VALIDATION RESULT

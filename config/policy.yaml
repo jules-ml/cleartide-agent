@@ -16,36 +16,12 @@
 
 policy_version: "0.1-dev"
 
-# ============================================================
-# AGENT EXECUTION CONTROLS
-# ============================================================
-
 agent:
-  # GV-5
-  # Setting this to false forces all decisions to human review.
   autonomous_action_enabled: true
-
-  # FR-1.3
-  # Below this confidence, the agent must escalate.
   classification_confidence_threshold: 0.75
-
-  # FR-2.5
   max_tool_calls_per_decision: 8
-
-  # FR-2.6
   max_identical_tool_calls: 2
-
-  # FR-5.5
   max_revision_attempts_after_rejection: 1
-
-# ============================================================
-# INTENT PRECEDENCE
-# ============================================================
-#
-# FR-1.4 requires secondary intents to be resolved according
-# to a precedence order stored in the policy file.
-# Highest priority appears first.
-# ============================================================
 
 intent_precedence:
   - HOSTILE_OR_ADVERSARIAL
@@ -56,47 +32,23 @@ intent_precedence:
   - DELIVERY_DISPUTE
   - UNCLEAR
 
-# ============================================================
-# RISK POLICY
-# ============================================================
-#
-# FR-3.3:
-# Business authority is based on risk BAND rather than directly
-# on the raw model probability.
-#
-# These initial band boundaries are provisional.
-# ============================================================
-
 risk:
   score_staleness_days: 30
-
   unavailable_score_default_band: CRITICAL
 
   bands:
     LOW:
       minimum: 0.00
       maximum: 0.30
-
     MEDIUM:
       minimum: 0.30
       maximum: 0.60
-
     HIGH:
       minimum: 0.60
       maximum: 0.80
-
     CRITICAL:
       minimum: 0.80
       maximum: 1.00
-
-# ============================================================
-# PAYMENT PLAN AUTHORITY
-# ============================================================
-#
-# PR-5.2 requires payment-plan limits to depend on risk band.
-#
-# These are development-policy values, not production policy.
-# ============================================================
 
 payment_plans:
   LOW:
@@ -119,39 +71,16 @@ payment_plans:
     minimum_down_payment_pct: 1.00
     autonomous_allowed: false
 
-# ============================================================
-# CONTACT POLICY
-# ============================================================
-
 contact:
-  # PR-2.1
   consumer_quiet_hours:
     start: "21:00"
     end: "08:00"
 
-  # PR-2.2
   email_exempt_from_quiet_hours: true
-
-  # PR-2.3
-  # Provisional business-policy limit.
   max_contacts_per_7_days: 4
-
-  # PR-4.1
   sms_requires_affirmative_consent: true
-
-  # PR-4.2
   honor_channel_opt_out: true
-
-  # PR-4.3
   opt_out_requires_escalation: true
-
-# ============================================================
-# ESCALATION THRESHOLDS
-# ============================================================
-#
-# These numeric thresholds are provisional business-policy
-# values and may be re-baselined later.
-# ============================================================
 
 escalation:
   disputed_amount_threshold: 5000.00
@@ -174,53 +103,20 @@ escalation:
     - death
     - serious illness
 
-# ============================================================
-# HARD CONSTRAINTS
-# ============================================================
-#
-# These rules cannot be overridden by the language model.
-# A violation must cause deterministic rejection and escalation.
-# ============================================================
-
 hard_constraints:
-  # PR-5.1
   autonomous_discount_allowed: false
   autonomous_waiver_allowed: false
   autonomous_writeoff_allowed: false
-
-  # PR-5.6
   autonomous_service_hold_allowed: false
-
-  # PR-3.1
   require_ledger_evidence_for_debt_assertion: true
-
-  # PR-3.2
   unauthorized_consequence_language_allowed: false
-
-  # PR-3.3
   third_party_collector_representation_allowed: false
-
-  # PR-4.1
   sms_without_consent_allowed: false
-
-  # FR-3.4
   missing_or_stale_risk_requires_highest_band: true
-
-# ============================================================
-# SOFT CONSTRAINTS
-# ============================================================
-#
-# These influence the preferred action but do not by themselves
-# create an absolute prohibition.
-# ============================================================
 
 soft_constraints:
   prefer_email_for_low_risk_accounts: true
-
   prefer_human_call_flag_for_high_risk_accounts: true
-
   reduce_contact_after_customer_response: true
-
   prefer_deescalation_for_hostile_language: true
-
   prioritize_existing_customer_relationship: true
