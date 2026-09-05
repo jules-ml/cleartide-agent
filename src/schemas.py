@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -182,7 +182,7 @@ class AgentActionRecommendation(BaseModel):
 
     rationale: str
 
-    
+
 class ProposedAction(BaseModel):
     """
     Action proposed by the agent before deterministic validation.
@@ -244,6 +244,62 @@ class PolicyValidationResult(BaseModel):
     )
 
     explanation: str
+
+
+class EscalationPacket(BaseModel):
+    """
+    Structured human-review packet produced when the ACA
+    cannot safely complete a decision autonomously.
+
+    This packet is intended to be legible by both technical
+    and nontechnical reviewers.
+    """
+
+    decision_id: int
+
+    account_id: int
+
+    invoice_id: Optional[int] = None
+
+    reply_text: str
+
+    primary_intent: Optional[Intent] = None
+
+    intent_confidence: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+    )
+
+    tool_results: list[dict[str, Any]] = Field(
+        default_factory=list
+    )
+
+    risk_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+    )
+
+    risk_band: Optional[RiskBand] = None
+
+    top_contributing_factors: list[str] = Field(
+        default_factory=list
+    )
+
+    proposed_action: Optional[
+        dict[str, Any]
+    ] = None
+
+    rejection_reason: Optional[str] = None
+
+    account_history: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
+    policy_version: str
+
+    final_reason: str
 
 
 # ============================================================

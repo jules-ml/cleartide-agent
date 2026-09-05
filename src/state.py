@@ -2,6 +2,7 @@ from typing import TypedDict
 
 from src.schemas import (
     ActionType,
+    EscalationPacket,
     IntentClassification,
     PolicyValidationResult,
     ProposedAction,
@@ -12,9 +13,6 @@ from src.schemas import (
 class AgentState(TypedDict, total=False):
     """
     Shared state for one ACA decision cycle.
-
-    LangGraph nodes read from this state and return only
-    the fields they modify.
     """
 
     # ========================================================
@@ -26,7 +24,16 @@ class AgentState(TypedDict, total=False):
     reply_text: str
 
     # ========================================================
-    # INTENT CLASSIFICATION
+    # DECISION AUDIT
+    # ========================================================
+
+    decision_id: int
+    started_at: float
+    latency_ms: float
+    reasoning_mode: str
+
+    # ========================================================
+    # CLASSIFICATION
     # ========================================================
 
     intent: IntentClassification
@@ -39,31 +46,53 @@ class AgentState(TypedDict, total=False):
     account_evidence: dict
     risk_evidence: dict
 
-    # Parsed trusted risk result.
     risk: RiskResult
 
     # ========================================================
-    # DECISION
+    # TOOL LOOP GUARDS
+    # ========================================================
+
+    tool_call_count: int
+
+    tool_call_signatures: dict[str, int]
+
+    guard_violation_reason: str
+
+    # ========================================================
+    # PROPOSED DECISION
     # ========================================================
 
     proposed_action: ProposedAction
 
     # ========================================================
-    # POLICY
+    # POLICY VALIDATION
     # ========================================================
 
     validation: PolicyValidationResult
 
     # ========================================================
-    # CONTROL / ESCALATION
+    # REVISION CONTROL
+    # ========================================================
+
+    revision_count: int
+    revision_reason: str
+
+    # ========================================================
+    # ESCALATION CONTROL
     # ========================================================
 
     forced_escalation_reason: str
+
+    escalation_id: int
+
+    escalation_packet: EscalationPacket
 
     # ========================================================
     # FINAL RESULT
     # ========================================================
 
     final_status: str
+
     final_action_type: ActionType
+
     final_reason: str

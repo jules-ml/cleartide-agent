@@ -121,6 +121,54 @@ def _tool_response(
     }
 
 
+def record_blocked_tool_call(
+    tool_name: str,
+    arguments: dict,
+    reason: str,
+    decision_id: int,
+) -> dict:
+    """
+    Record a tool invocation attempt that was blocked by
+    deterministic loop / usage guards.
+
+    The tool itself is NOT executed.
+    """
+
+    return _tool_response(
+        tool_name=tool_name,
+        arguments=arguments,
+        data={
+            "blocked": True,
+            "reason": reason,
+        },
+        status="BLOCKED_BY_GUARD",
+        decision_id=decision_id,
+    )
+
+
+def record_tool_error(
+    tool_name: str,
+    arguments: dict,
+    error_message: str,
+    decision_id: int,
+) -> dict:
+    """
+    Record an unexpected exception produced while attempting
+    a tool call.
+    """
+
+    return _tool_response(
+        tool_name=tool_name,
+        arguments=arguments,
+        data={
+            "error": True,
+            "error_message": error_message,
+        },
+        status="ERROR",
+        decision_id=decision_id,
+    )
+
+
 # ============================================================
 # TOOL 1
 # VERIFY INVOICE DELIVERY
