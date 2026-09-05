@@ -160,7 +160,29 @@ class ToolCallRecord(BaseModel):
 # ============================================================
 # PROPOSED ACTION
 # ============================================================
+class AgentActionRecommendation(BaseModel):
+    """
+    Development-time action recommendation.
 
+    During Step 8 this is produced by a deterministic mock
+    recommender.
+
+    Later the real language model will produce this exact
+    same structure.
+
+    Trusted system fields such as risk score, policy version,
+    and tool-call IDs are NOT supplied by the recommender.
+    """
+
+    action_type: ActionType
+
+    target_channel: Optional[Channel] = None
+
+    message_body: Optional[str] = None
+
+    rationale: str
+
+    
 class ProposedAction(BaseModel):
     """
     Action proposed by the agent before deterministic validation.
