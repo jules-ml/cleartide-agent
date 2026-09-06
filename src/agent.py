@@ -38,6 +38,7 @@ from src.tool_guard import (
 from src.tools import (
     get_account_history,
     get_risk_score,
+    reconcile_payment_claim,
     verify_invoice_delivery,
 )
 
@@ -106,12 +107,15 @@ def mock_classify_reply(
         )
 
     already_paid_terms = [
-        "already paid",
-        "we paid",
-        "i paid",
-        "payment was sent",
-        "payment already sent",
-        "already sent payment",
+    "already paid",
+    "we paid",
+    "i paid",
+    "payment was sent",
+    "payment was already sent",
+    "payment already sent",
+    "already sent payment",
+    "payment has been sent",
+    "payment has already been sent",
     ]
 
     if any(
@@ -226,7 +230,7 @@ def mock_classify_reply(
 
 
 # ============================================================
-# MOCK ACTION RECOMMENDER
+# MOCK DELIVERY ACTION RECOMMENDER
 # ============================================================
 
 def mock_recommend_delivery_action(
@@ -349,6 +353,143 @@ def mock_recommend_delivery_action(
 
 
 # ============================================================
+# MOCK ALREADY-PAID ACTION RECOMMENDER
+# ============================================================
+
+def mock_recommend_already_paid_action(
+    state: AgentState,
+) -> AgentActionRecommendation:
+    """
+    Zero-cost deterministic development stand-in for the
+    future LLM reasoning step for ALREADY_PAID_CLAIM.
+
+    The function reasons only over verified ledger evidence.
+
+    It never assumes that the customer is correct or incorrect
+    without using reconcile_payment_claim first.
+    """
+
+    payment_data = state[
+        "payment_evidence"
+    ]["data"]
+
+    account_data = state[
+        "account_evidence"
+    ]["data"]["account"]
+
+    payment_claim_verified = bool(
+        payment_data.get(
+            "payment_claim_verified",
+            False,
+        )
+    )
+
+    invoice_amount = float(
+        payment_data.get(
+            "invoice_amount",
+            0.0,
+        )
+    )
+
+    posted_payment_total = float(
+        payment_data.get(
+            "posted_payment_total",
+            0.0,
+        )
+    )
+
+    email_allowed = bool(
+        account_data.get(
+            "email_allowed",
+            False,
+        )
+    )
+
+    # ========================================================
+    # CASE 1
+    # PAYMENT IS VERIFIED
+    # ========================================================
+
+    if payment_claim_verified:
+
+        return AgentActionRecommendation(
+            action_type=(
+                ActionType.NO_ACTION_MONITOR
+            ),
+
+            target_channel=None,
+
+            message_body=None,
+
+            rationale=(
+                "Ledger reconciliation verifies the customer's "
+                "payment claim. Posted payments total "
+                f"${posted_payment_total:,.2f} against an "
+                f"invoice amount of ${invoice_amount:,.2f}. "
+                "No additional collection action is appropriate."
+            ),
+        )
+
+    # ========================================================
+    # CASE 2
+    # CLAIM IS NOT VERIFIED, BUT EMAIL IS AVAILABLE
+    # ========================================================
+
+    if email_allowed:
+
+        return AgentActionRecommendation(
+            action_type=(
+                ActionType.SEND_MESSAGE
+            ),
+
+            target_channel=(
+                Channel.EMAIL
+            ),
+
+            message_body=(
+                "Thank you for the payment update. "
+                "We were unable to match a full payment to this "
+                "invoice in our current records. Please reply "
+                "with the payment date, amount, and transaction "
+                "or reference number so we can reconcile it."
+            ),
+
+            rationale=(
+                "Ledger reconciliation did not verify full "
+                "payment of the invoice. Current posted payments "
+                f"total ${posted_payment_total:,.2f} against an "
+                f"invoice amount of ${invoice_amount:,.2f}. "
+                "The customer should be asked for remittance "
+                "details rather than being told that no payment "
+                "was made."
+            ),
+        )
+
+    # ========================================================
+    # CASE 3
+    # CLAIM NOT VERIFIED AND NO EMAIL AVAILABLE
+    # ========================================================
+
+    return AgentActionRecommendation(
+        action_type=(
+            ActionType.FLAG_FOR_HUMAN_CALL
+        ),
+
+        target_channel=(
+            Channel.HUMAN_CALL_FLAG
+        ),
+
+        message_body=None,
+
+        rationale=(
+            "The payment claim could not be verified from the "
+            "ledger and the account does not permit email "
+            "communication. Human follow-up is required."
+        ),
+    )
+
+
+# ============================================================
 # NODE 0
 # INITIALIZE DECISION
 # ============================================================
@@ -431,29 +572,52 @@ def classify_reply_node(
 def route_after_classification(
     state: AgentState,
 ) -> str:
+    """
+    Route supported intents into their implemented vertical
+    slices.
 
-    if (
+    Step 11 supports:
+
+        DELIVERY_DISPUTE
+        ALREADY_PAID_CLAIM
+
+    Everything else continues to fail closed.
+    """
+
+    primary_intent = (
         state[
             "intent"
         ].primary_intent
+    )
+
+    if (
+        primary_intent
         == Intent.DELIVERY_DISPUTE
     ):
+
         return "delivery_dispute"
+
+    if (
+        primary_intent
+        == Intent.ALREADY_PAID_CLAIM
+    ):
+
+        return "already_paid_claim"
 
     return "unsupported_intent"
 
 
 # ============================================================
-# NODE 2
-# GUARDED EVIDENCE RETRIEVAL
+# NODE 2A
+# GUARDED DELIVERY EVIDENCE RETRIEVAL
 # ============================================================
 
 def gather_delivery_evidence_node(
     state: AgentState,
 ) -> dict:
     """
-    Gather required evidence while enforcing deterministic
-    per-decision tool limits.
+    Gather required delivery evidence while enforcing
+    deterministic per-decision tool limits.
     """
 
     guard = ToolGuardState(
@@ -476,10 +640,10 @@ def gather_delivery_evidence_node(
 
     update = {}
 
-    # --------------------------------------------------------
+    # ========================================================
     # TOOL 1
     # VERIFY DELIVERY
-    # --------------------------------------------------------
+    # ========================================================
 
     delivery_result, violation = (
         execute_guarded_tool(
@@ -555,10 +719,10 @@ def gather_delivery_evidence_node(
 
         return update
 
-    # --------------------------------------------------------
+    # ========================================================
     # TOOL 2
     # ACCOUNT HISTORY
-    # --------------------------------------------------------
+    # ========================================================
 
     account_result, violation = (
         execute_guarded_tool(
@@ -634,10 +798,10 @@ def gather_delivery_evidence_node(
 
         return update
 
-    # --------------------------------------------------------
+    # ========================================================
     # TOOL 3
     # RISK SCORE
-    # --------------------------------------------------------
+    # ========================================================
 
     risk_result, violation = (
         execute_guarded_tool(
@@ -718,9 +882,347 @@ def gather_delivery_evidence_node(
 
         return update
 
-    # --------------------------------------------------------
-    # TRUSTED RISK RESULT
-    # --------------------------------------------------------
+    # ========================================================
+    # BUILD TRUSTED RISK OBJECT
+    # ========================================================
+
+    risk_data = (
+        risk_result[
+            "data"
+        ]
+    )
+
+    trusted_risk = RiskResult(
+        score=(
+            risk_data[
+                "score"
+            ]
+        ),
+
+        band=(
+            risk_data[
+                "risk_band"
+            ]
+        ),
+
+        model_version=(
+            risk_data[
+                "model_version"
+            ]
+        ),
+
+        contributing_factors=(
+            risk_data.get(
+                "contributing_factors"
+            )
+            or []
+        ),
+    )
+
+    update[
+        "risk"
+    ] = trusted_risk
+
+    update[
+        "tool_call_count"
+    ] = guard.total_calls
+
+    update[
+        "tool_call_signatures"
+    ] = dict(
+        guard.signature_counts
+    )
+
+    return update
+
+
+# ============================================================
+# NODE 2B
+# GUARDED ALREADY-PAID EVIDENCE RETRIEVAL
+# ============================================================
+
+def gather_already_paid_evidence_node(
+    state: AgentState,
+) -> dict:
+    """
+    Gather the verified evidence required to process an
+    ALREADY_PAID_CLAIM.
+
+    Required evidence:
+
+        reconcile_payment_claim
+        account context
+        risk score
+
+    Every tool call passes through the deterministic tool
+    guard and is linked to the decision_id.
+    """
+
+    guard = ToolGuardState(
+        decision_id=state[
+            "decision_id"
+        ],
+
+        total_calls=state.get(
+            "tool_call_count",
+            0,
+        ),
+
+        signature_counts=dict(
+            state.get(
+                "tool_call_signatures",
+                {},
+            )
+        ),
+    )
+
+    update = {}
+
+    # ========================================================
+    # TOOL 1
+    # RECONCILE PAYMENT CLAIM
+    # ========================================================
+
+    payment_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "reconcile_payment_claim"
+            ),
+
+            arguments={
+                "invoice_id":
+                    state[
+                        "invoice_id"
+                    ]
+            },
+
+            tool_function=(
+                reconcile_payment_claim
+            ),
+        )
+    )
+
+    update[
+        "payment_evidence"
+    ] = payment_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        payment_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: "
+            "reconcile_payment_claim "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 2
+    # ACCOUNT CONTEXT
+    # ========================================================
+
+    account_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_account_history"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_account_history
+            ),
+        )
+    )
+
+    update[
+        "account_evidence"
+    ] = account_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        account_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: "
+            "get_account_history "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 3
+    # TRUSTED RISK SCORE
+    # ========================================================
+
+    risk_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_risk_score"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ],
+
+                "invoice_id":
+                    state[
+                        "invoice_id"
+                    ],
+            },
+
+            tool_function=(
+                get_risk_score
+            ),
+        )
+    )
+
+    update[
+        "risk_evidence"
+    ] = risk_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        risk_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: "
+            "get_risk_score "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # BUILD TRUSTED RISK OBJECT
+    # ========================================================
 
     risk_data = (
         risk_result[
@@ -796,37 +1298,116 @@ def route_after_evidence(
 def propose_action_node(
     state: AgentState,
 ) -> dict:
+    """
+    Produce the action recommendation for whichever supported
+    vertical slice is active.
 
-    recommendation = (
-        mock_recommend_delivery_action(
-            state
-        )
+    The reasoning layer chooses:
+
+        action
+        channel
+        message
+        rationale
+
+    Application code supplies trusted:
+
+        tool call IDs
+        risk score
+        risk band
+        policy version
+    """
+
+    primary_intent = (
+        state[
+            "intent"
+        ].primary_intent
     )
+
+    # ========================================================
+    # DELIVERY DISPUTE
+    # ========================================================
+
+    if (
+        primary_intent
+        == Intent.DELIVERY_DISPUTE
+    ):
+
+        recommendation = (
+            mock_recommend_delivery_action(
+                state
+            )
+        )
+
+        tool_call_ids = [
+            state[
+                "delivery_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "account_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "risk_evidence"
+            ][
+                "tool_call_id"
+            ],
+        ]
+
+    # ========================================================
+    # ALREADY PAID CLAIM
+    # ========================================================
+
+    elif (
+        primary_intent
+        == Intent.ALREADY_PAID_CLAIM
+    ):
+
+        recommendation = (
+            mock_recommend_already_paid_action(
+                state
+            )
+        )
+
+        tool_call_ids = [
+            state[
+                "payment_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "account_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "risk_evidence"
+            ][
+                "tool_call_id"
+            ],
+        ]
+
+    # ========================================================
+    # DEFENSIVE FAIL CLOSED
+    # ========================================================
+
+    else:
+
+        raise RuntimeError(
+            "propose_action_node received an "
+            "unsupported intent."
+        )
 
     policy = load_policy()
 
     risk = state[
         "risk"
-    ]
-
-    tool_call_ids = [
-        state[
-            "delivery_evidence"
-        ][
-            "tool_call_id"
-        ],
-
-        state[
-            "account_evidence"
-        ][
-            "tool_call_id"
-        ],
-
-        state[
-            "risk_evidence"
-        ][
-            "tool_call_id"
-        ],
     ]
 
     proposal = ProposedAction(
@@ -999,7 +1580,7 @@ def revise_action_node(
     Deterministically revise a rejected proposal only when a
     safe, explicit correction rule exists.
 
-    Step 9 currently implements the SMS-consent correction:
+    Current development rule:
 
         SMS rejected
             ->
@@ -1043,10 +1624,10 @@ def revise_action_node(
         )
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # SAFE REVISION RULE
     # PR-4.1
-    # --------------------------------------------------------
+    # ========================================================
 
     if (
         "PR-4.1"
@@ -1089,9 +1670,9 @@ def revise_action_node(
                 ),
         }
 
-    # --------------------------------------------------------
+    # ========================================================
     # NO SAFE AUTOMATIC REVISION EXISTS
-    # --------------------------------------------------------
+    # ========================================================
 
     return {
         "revision_count":
@@ -1225,8 +1806,8 @@ def unsupported_intent_node(
         "final_reason":
             (
                 f"Intent {intent} is not yet "
-                f"implemented in the Step 9 "
-                f"vertical slice."
+                f"implemented in the current "
+                f"ACA development build."
             ),
     }
 
@@ -1326,6 +1907,11 @@ def build_graph():
     )
 
     builder.add_node(
+        "gather_already_paid_evidence",
+        gather_already_paid_evidence_node,
+    )
+
+    builder.add_node(
         "propose_action",
         propose_action_node,
     )
@@ -1392,17 +1978,38 @@ def build_graph():
             "delivery_dispute":
                 "gather_delivery_evidence",
 
+            "already_paid_claim":
+                "gather_already_paid_evidence",
+
             "unsupported_intent":
                 "unsupported_intent",
         },
     )
 
     # ========================================================
-    # EVIDENCE ROUTE
+    # DELIVERY EVIDENCE ROUTE
     # ========================================================
 
     builder.add_conditional_edges(
         "gather_delivery_evidence",
+
+        route_after_evidence,
+
+        {
+            "propose_action":
+                "propose_action",
+
+            "forced_escalation":
+                "forced_escalation",
+        },
+    )
+
+    # ========================================================
+    # ALREADY-PAID EVIDENCE ROUTE
+    # ========================================================
+
+    builder.add_conditional_edges(
+        "gather_already_paid_evidence",
 
         route_after_evidence,
 
@@ -1425,7 +2032,7 @@ def build_graph():
     )
 
     # ========================================================
-    # VALIDATOR ROUTE
+    # VALIDATION ROUTE
     # ========================================================
 
     builder.add_conditional_edges(

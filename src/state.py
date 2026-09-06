@@ -43,7 +43,11 @@ class AgentState(TypedDict, total=False):
     # ========================================================
 
     delivery_evidence: dict
+
+    payment_evidence: dict
+
     account_evidence: dict
+
     risk_evidence: dict
 
     risk: RiskResult

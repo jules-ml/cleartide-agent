@@ -20,7 +20,7 @@
       "get_account_history",
       "get_risk_score"
     ],
-    "notes": "Implemented Step 8/9 delivery-dispute vertical slice."
+    "notes": "Implemented delivery-dispute vertical slice."
   },
   {
     "case_id": "GOLD-002",
@@ -137,15 +137,15 @@
   },
   {
     "case_id": "GOLD-007",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
     "invoice_id": 5001,
     "reply_text": "We already paid invoice 5001.",
     "expected_intent": "ALREADY_PAID_CLAIM",
-    "expected_final_status": null,
-    "expected_final_action": null,
+    "expected_final_status": "APPROVED",
+    "expected_final_action": "SEND_MESSAGE",
     "required_tools": [
       "reconcile_payment_claim",
       "get_risk_score"
@@ -155,19 +155,19 @@
       "get_risk_score",
       "get_account_history"
     ],
-    "notes": "Future already-paid branch. Final action not labeled yet."
+    "notes": "Implemented Step 11 already-paid branch. Current fixture contains only a partial posted payment, so the safe action is to request remittance details."
   },
   {
     "case_id": "GOLD-008",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
     "invoice_id": 5001,
     "reply_text": "Payment was already sent for this invoice.",
     "expected_intent": "ALREADY_PAID_CLAIM",
-    "expected_final_status": null,
-    "expected_final_action": null,
+    "expected_final_status": "APPROVED",
+    "expected_final_action": "SEND_MESSAGE",
     "required_tools": [
       "reconcile_payment_claim",
       "get_risk_score"
@@ -177,7 +177,7 @@
       "get_risk_score",
       "get_account_history"
     ],
-    "notes": "Future already-paid branch."
+    "notes": "Alternate already-paid phrasing for the implemented Step 11 branch."
   },
   {
     "case_id": "GOLD-009",

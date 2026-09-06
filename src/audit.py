@@ -193,9 +193,10 @@ def build_escalation_packet(
     tool_results = []
 
     for key in (
-        "delivery_evidence",
-        "account_evidence",
-        "risk_evidence",
+    "delivery_evidence",
+    "payment_evidence",
+    "account_evidence",
+    "risk_evidence",
     ):
 
         result = state.get(
