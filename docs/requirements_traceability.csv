@@ -1,0 +1,68 @@
+requirement_id,category,requirement_summary,implementation_artifact,verification_artifact,status,notes
+FR-1.1,Intent Classification,Use controlled seven-intent vocabulary,src/schemas.py; src/agent.py,tests/test_evaluation.py,PARTIAL,Enums and mock classifier implemented; real model integration remains
+FR-1.2,Intent Classification,Return confidence from 0 to 1,src/schemas.py; src/agent.py,tests/test_agent_step8.py,PARTIAL,Structured confidence implemented with deterministic development classifier
+FR-1.3,Intent Classification,Escalate below configured confidence threshold,src/policy.py; config/policy.yaml,tests/test_policy.py,IMPLEMENTED,Deterministic threshold enforcement
+FR-1.4,Intent Classification,Support secondary intents and policy precedence,src/schemas.py; src/agent.py; config/policy.yaml,tests/test_evaluation.py,PARTIAL,Precedence implemented in development classifier
+FR-1.5,Intent Classification,UNCLEAR always escalates,src/policy.py; src/agent.py,tests/test_policy.py,IMPLEMENTED,Fail-closed behavior tested
+FR-2.1,Evidence,Do not assert invoice or payment facts without tool retrieval,src/tools.py; src/agent.py,tests/test_step9.py,PARTIAL,Implemented for current delivery vertical slice
+FR-2.2,Evidence,DELIVERY_DISPUTE must invoke verify_invoice_delivery,src/tools.py; src/agent.py,tests/test_evaluation.py,IMPLEMENTED,Active golden cases verify required tool
+FR-2.3,Evidence,ALREADY_PAID_CLAIM must invoke reconcile_payment_claim,src/tools.py,Future golden activation,PARTIAL,Tool exists; agent branch not yet implemented
+FR-2.4,Evidence,PAYMENT_PLAN_REQUEST must invoke get_payment_history and get_risk_score,src/tools.py,Future golden activation,PARTIAL,Tools exist; agent branch not yet implemented
+FR-2.5,Evidence,Maximum tool calls per decision defaults to eight,src/tool_guard.py; config/policy.yaml,tests/test_step9.py,IMPLEMENTED,Guard blocks calls beyond configured limit
+FR-2.6,Evidence,Identical tool and identical arguments may occur at most twice,src/tool_guard.py,tests/test_step9.py,IMPLEMENTED,Third identical call blocked
+FR-2.7,Evidence,Required tool error or no result causes escalation,src/tool_guard.py; src/agent.py,tests/test_step9.py,IMPLEMENTED,Current required-tool path fails closed
+FR-2.8,Evidence,Record every tool call and result with an identifier,src/tools.py; src/audit.py,tests/test_step9.py,IMPLEMENTED,Tool calls linked to decision_id and persisted
+FR-3.1,Risk,Obtain risk score through tool before autonomous action,src/tools.py; src/agent.py,tests/test_evaluation.py,PARTIAL,Implemented in delivery slice; remaining intent branches open
+FR-3.2,Risk,LLM must not generate substitute risk score,src/agent.py,tests/test_evaluation.py,IMPLEMENTED,Trusted risk injected from tool result
+FR-3.3,Risk,Policy decisions use risk band rather than raw score,src/policy.py; config/policy.yaml,tests/test_policy.py,PARTIAL,Payment-plan policy uses risk band; broader rules remain
+FR-3.4,Risk,Missing or stale risk defaults to highest risk band,config/policy.yaml; src/policy.py,Future regression test,PARTIAL,Policy setting exists; stale-time enforcement still open
+FR-3.5,Risk,Include top contributing factors in escalation,src/audit.py,tests/test_step9.py,IMPLEMENTED,EscalationPacket includes factors when risk exists
+FR-4.1,Action Selection,Use controlled seven-action vocabulary,src/schemas.py,tests/test_agent_step8.py,IMPLEMENTED,ActionType enum implemented
+FR-4.2,Action Selection,Use schema-validated structured action rather than prose parsing,src/schemas.py; src/agent.py,tests/test_agent_step8.py,IMPLEMENTED,Pydantic ProposedAction used
+FR-4.3,Action Selection,Action includes channel message rationale evidence IDs risk and policy version,src/schemas.py; src/agent.py,tests/test_step9.py,IMPLEMENTED,Structured proposal persisted
+FR-4.4,Action Selection,Use EMAIL SMS or HUMAN_CALL_FLAG channels,src/schemas.py,tests/test_policy.py,IMPLEMENTED,Channel enum implemented
+FR-4.5,Action Selection,Channel selection accounts for consent responsiveness risk and quiet hours,src/policy.py; config/policy.yaml,Future channel tests,PARTIAL,SMS consent implemented; full quiet-hour and responsiveness logic open
+FR-4.6,Action Selection,Escalate when no permissible action exists,src/agent.py; src/policy.py,tests/test_step9.py,IMPLEMENTED,Fail-closed routing implemented
+FR-5.1,Policy Validation,Every proposal passes deterministic validator,src/agent.py; src/policy.py,tests/test_policy.py,IMPLEMENTED,Validator always precedes autonomous final action
+FR-5.2,Policy Validation,Hard constraints live in application code without LLM dependency,src/policy.py,tests/test_policy.py,IMPLEMENTED,Validator independent of reasoning model
+FR-5.3,Policy Validation,Hard violation rejects and escalates,src/policy.py; src/agent.py,tests/test_policy.py,IMPLEMENTED,Rejected or escalated proposals cannot execute
+FR-5.4,Policy Validation,Log violated constraint identifier and field,src/policy.py; src/audit.py,tests/test_step9.py,PARTIAL,Constraint IDs logged; field-level detail can be expanded
+FR-5.5,Policy Validation,Permit at most one revision after rejection,src/agent.py; config/policy.yaml,tests/test_step9.py,IMPLEMENTED,Revision counter and route tested
+FR-5.6,Policy Validation,Validator independently unit-testable without agent,src/policy.py,tests/test_policy.py,IMPLEMENTED,Direct validator tests pass
+FR-6.1,Escalation,Escalation packet contains reply intent tools risk proposed action rejection and history,src/schemas.py; src/audit.py,tests/test_step9.py,IMPLEMENTED,Structured packet persisted as JSON
+FR-6.2,Escalation,Suspend autonomous action until human disposition,src/agent.py,tests/test_step9.py,PARTIAL,Escalation ends autonomous decision; review workflow not built
+FR-6.3,Escalation,Record human disposition,escalations.human_disposition,Future review-interface test,OPEN,Database field exists but no review workflow yet
+FR-6.4,Escalation,Packet must be legible to nontechnical reviewer,src/audit.py,Human review evaluation,PARTIAL,Structured packet exists; usability review still required
+FR-7.1,Account Memory,Retrieve prior promises before a new promise,src/tools.py,Future promise branch test,PARTIAL,get_prior_promises exists; branch open
+FR-7.2,Account Memory,Retrieve prior disputes and resolutions,src/tools.py,Future dispute branch test,PARTIAL,get_prior_disputes exists; branch open
+FR-7.3,Account Memory,Retrieve prior escalations and dispositions,src/tools.py,Future escalation-memory test,PARTIAL,get_prior_escalations exists; branch integration open
+FR-7.4,Account Memory,Third unsupported ALREADY_PAID_CLAIM mandates escalation,Planned agent memory rule,Future regression test,OPEN,Not implemented yet
+FR-7.5,Account Memory,Use exact relational records when exact query exists,src/tools.py; src/audit.py,tests/test_step9.py,IMPLEMENTED,SQLite relational queries used
+PR-1,Policy,Classify debt as CONSUMER or COMMERCIAL and default ambiguity to CONSUMER,accounts.debt_type; src/audit.py,Future debt-classification tests,PARTIAL,Field and audit capture exist; deterministic classification rule still open
+PR-2.1,Contact Policy,Consumer SMS or telephone restricted outside configured hours,config/policy.yaml,Future quiet-hours tests,OPEN,Configuration exists but enforcement not yet implemented
+PR-2.2,Contact Policy,Email exempt from quiet hours while honoring preference,config/policy.yaml,Future channel tests,OPEN,Configuration exists
+PR-2.3,Contact Policy,Enforce rolling seven-day contact-frequency limit,config/policy.yaml,Future contact-frequency tests,OPEN,Configuration exists but enforcement open
+PR-2.4,Contact Policy,Evaluate quiet hours at proposed send time,Planned policy context,Future quiet-hours tests,OPEN,Not yet implemented
+PR-3,Truthfulness,Use retrieved ledger evidence and prohibit misleading representations or consequences,config/policy.yaml; src/tools.py,Future message-safety tests,PARTIAL,Hard-constraint configuration exists; broader message checks remain
+PR-4.1,Consent,SMS requires affirmative consent,src/policy.py; config/policy.yaml,tests/test_policy.py,IMPLEMENTED,SMS without consent rejected
+PR-4.2,Consent,Channel opt-out is immediate and permanent,src/policy.py,Future opt-out persistence test,PARTIAL,Validator parameter exists; persistent opt-out data model open
+PR-4.3,Consent,Channel opt-out requires escalation,src/policy.py,tests/test_policy.py,IMPLEMENTED,Opt-out path escalates when supplied
+PR-5.1,Authority,No autonomous discount waiver or writeoff,src/schemas.py; config/policy.yaml,tests/test_policy.py,IMPLEMENTED,Unauthorized actions absent from controlled action vocabulary
+PR-5.2,Authority,Payment plans respect duration and down-payment bounds by risk band,src/policy.py; config/policy.yaml,tests/test_policy.py,PARTIAL,Validator implemented; payment-plan agent branch open
+PR-5.3,Authority,Legal bankruptcy regulatory death or serious-illness language escalates,src/policy.py; config/policy.yaml,tests/test_policy.py,IMPLEMENTED,Sensitive-term escalation tested
+PR-5.4,Authority,Disputed amount over threshold escalates,config/policy.yaml,Future amount-dispute tests,OPEN,Threshold configured but branch not implemented
+PR-5.5,Authority,Firm tone for high-value or high-tenure accounts requires escalation,config/policy.yaml,Future account-value tests,OPEN,Thresholds configured but enforcement open
+PR-5.6,Authority,No autonomous service hold,src/schemas.py; config/policy.yaml,Schema regression,IMPLEMENTED,Service hold excluded from controlled actions
+PR-6.1,Policy Configuration,Bounds and thresholds are external machine-readable parameters,config/policy.yaml,tests/test_policy.py,IMPLEMENTED,YAML policy used
+PR-6.2,Policy Configuration,Policy-bound changes do not require Python code changes,config/policy.yaml; src/policy.py,tests/test_policy.py,IMPLEMENTED,Externalized configuration demonstrated
+PR-6.3,Policy Configuration,Log policy version with every decision,src/audit.py; src/agent.py,tests/test_step9.py,IMPLEMENTED,policy_version persisted
+PR-6.4,Policy Configuration,Distinguish hard and soft constraints,config/policy.yaml,Policy parse test,IMPLEMENTED,Separate YAML sections
+DR-1,Data,Maintain required relational entities,setup_database.py,Database schema inspection,IMPLEMENTED,Accounts invoices payments communications delivery disputes promises actions implemented
+DR-2,Data,Synthetic data generator is parameterized with documented data-generating process and explicit seed,seed_data.py,Future synthetic-generator tests,OPEN,Current seed file is only a development fixture
+DR-3,Data,Synthetic data includes required customer archetypes,Planned synthetic generator,Future generator tests,OPEN,Not yet implemented
+GV-1,Governance,Log decision intent debt classification tools risk action validation policy cost and latency,src/audit.py; src/tools.py,tests/test_step9.py,PARTIAL,Core audit fields implemented; final completeness review remains
+GV-2,Governance,Audit trail is append-only and exportable,SQLite audit tables,Future export and immutability tests,PARTIAL,Exportable relational records exist; append-only enforcement remains
+GV-3,Governance,Escalation packet is suitable for nontechnical review,src/audit.py; src/schemas.py,Human review evaluation,PARTIAL,Packet implemented; human usability check remains
+GV-4,Governance,Maintain documented usage policy,docs; config/policy.yaml,Final documentation review,OPEN,Formal usage-policy document still required
+GV-5,Governance,Configuration kill switch can force all decisions to escalation,src/policy.py; config/policy.yaml,tests/test_policy.py,IMPLEMENTED,Global autonomy switch implemented
+GV-6,Governance,Specify retraining protocol without implementing automated retraining,Final report documentation,Final documentation review,OPEN,Specification deferred to later report work

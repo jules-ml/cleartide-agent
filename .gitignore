@@ -4,5 +4,5 @@ __pycache__/
 *.pyc
 .DS_Store
 .pytest_cache/
-
 data/*.db
+evals/latest_results.json

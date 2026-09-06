@@ -1,0 +1,286 @@
+[
+  {
+    "case_id": "GOLD-001",
+    "active": true,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "We never received invoice 5001. Can you send it again?",
+    "expected_intent": "DELIVERY_DISPUTE",
+    "expected_final_status": "APPROVED",
+    "expected_final_action": "RESEND_INVOICE",
+    "required_tools": [
+      "verify_invoice_delivery",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "verify_invoice_delivery",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "notes": "Implemented Step 8/9 delivery-dispute vertical slice."
+  },
+  {
+    "case_id": "GOLD-002",
+    "active": true,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "We did not receive invoice 5001.",
+    "expected_intent": "DELIVERY_DISPUTE",
+    "expected_final_status": "APPROVED",
+    "expected_final_action": "RESEND_INVOICE",
+    "required_tools": [
+      "verify_invoice_delivery",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "verify_invoice_delivery",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "notes": "Alternate delivery-dispute phrasing."
+  },
+  {
+    "case_id": "GOLD-003",
+    "active": true,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "We never got the invoice. Please resend it.",
+    "expected_intent": "DELIVERY_DISPUTE",
+    "expected_final_status": "APPROVED",
+    "expected_final_action": "RESEND_INVOICE",
+    "required_tools": [
+      "verify_invoice_delivery",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "verify_invoice_delivery",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "notes": "Alternate delivery-dispute phrasing."
+  },
+  {
+    "case_id": "GOLD-004",
+    "active": true,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "The invoice was not delivered to us.",
+    "expected_intent": "DELIVERY_DISPUTE",
+    "expected_final_status": "APPROVED",
+    "expected_final_action": "RESEND_INVOICE",
+    "required_tools": [
+      "verify_invoice_delivery",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "verify_invoice_delivery",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "notes": "Alternate delivery-dispute phrasing."
+  },
+  {
+    "case_id": "GOLD-005",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "Can we split the balance into four monthly payments?",
+    "expected_intent": "PAYMENT_PLAN_REQUEST",
+    "expected_final_status": "ESCALATE",
+    "expected_final_action": "ESCALATE",
+    "required_tools": [
+      "get_payment_history",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "get_payment_history",
+      "get_risk_score",
+      "get_prior_promises"
+    ],
+    "notes": "Future payment-plan branch. MEDIUM fixture risk currently does not permit autonomous plan approval."
+  },
+  {
+    "case_id": "GOLD-006",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "Can I pay this in two installments?",
+    "expected_intent": "PAYMENT_PLAN_REQUEST",
+    "expected_final_status": "ESCALATE",
+    "expected_final_action": "ESCALATE",
+    "required_tools": [
+      "get_payment_history",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "get_payment_history",
+      "get_risk_score",
+      "get_prior_promises"
+    ],
+    "notes": "Future payment-plan branch."
+  },
+  {
+    "case_id": "GOLD-007",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "We already paid invoice 5001.",
+    "expected_intent": "ALREADY_PAID_CLAIM",
+    "expected_final_status": null,
+    "expected_final_action": null,
+    "required_tools": [
+      "reconcile_payment_claim",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "reconcile_payment_claim",
+      "get_risk_score",
+      "get_account_history"
+    ],
+    "notes": "Future already-paid branch. Final action not labeled yet."
+  },
+  {
+    "case_id": "GOLD-008",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "Payment was already sent for this invoice.",
+    "expected_intent": "ALREADY_PAID_CLAIM",
+    "expected_final_status": null,
+    "expected_final_action": null,
+    "required_tools": [
+      "reconcile_payment_claim",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "reconcile_payment_claim",
+      "get_risk_score",
+      "get_account_history"
+    ],
+    "notes": "Future already-paid branch."
+  },
+  {
+    "case_id": "GOLD-009",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "We will pay on Friday.",
+    "expected_intent": "PROMISE_TO_PAY",
+    "expected_final_status": null,
+    "expected_final_action": null,
+    "required_tools": [
+      "get_prior_promises",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "get_prior_promises",
+      "get_risk_score",
+      "get_account_history"
+    ],
+    "notes": "Future promise-to-pay branch."
+  },
+  {
+    "case_id": "GOLD-010",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "The amount is wrong. We were overcharged.",
+    "expected_intent": "AMOUNT_DISPUTE",
+    "expected_final_status": null,
+    "expected_final_action": null,
+    "required_tools": [
+      "get_prior_disputes",
+      "get_risk_score"
+    ],
+    "allowed_tools": [
+      "get_prior_disputes",
+      "get_account_history",
+      "get_risk_score"
+    ],
+    "notes": "Future amount-dispute branch."
+  },
+  {
+    "case_id": "GOLD-011",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "My attorney will be contacting you.",
+    "expected_intent": "HOSTILE_OR_ADVERSARIAL",
+    "expected_final_status": "ESCALATE",
+    "expected_final_action": "ESCALATE",
+    "required_tools": [],
+    "allowed_tools": [],
+    "notes": "Mandatory sensitive/legal escalation case."
+  },
+  {
+    "case_id": "GOLD-012",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "I am going to sue you over this.",
+    "expected_intent": "HOSTILE_OR_ADVERSARIAL",
+    "expected_final_status": "ESCALATE",
+    "expected_final_action": "ESCALATE",
+    "required_tools": [],
+    "allowed_tools": [],
+    "notes": "Mandatory hostile/legal escalation case."
+  },
+  {
+    "case_id": "GOLD-013",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "What?",
+    "expected_intent": "UNCLEAR",
+    "expected_final_status": "ESCALATE",
+    "expected_final_action": "ESCALATE",
+    "required_tools": [],
+    "allowed_tools": [],
+    "notes": "UNCLEAR must escalate."
+  },
+  {
+    "case_id": "GOLD-014",
+    "active": false,
+    "label_status": "DEVELOPMENT_SEED",
+    "human_reviewed": false,
+    "account_id": 1001,
+    "invoice_id": 5001,
+    "reply_text": "I do not understand what this is about.",
+    "expected_intent": "UNCLEAR",
+    "expected_final_status": "ESCALATE",
+    "expected_final_action": "ESCALATE",
+    "required_tools": [],
+    "allowed_tools": [],
+    "notes": "Future ambiguity case."
+  }
+]
