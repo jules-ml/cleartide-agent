@@ -195,9 +195,11 @@ def build_escalation_packet(
     for key in (
     "delivery_evidence",
     "payment_evidence",
+    "payment_history_evidence",
+    "prior_promises_evidence",
     "account_evidence",
     "risk_evidence",
-    ):
+):
 
         result = state.get(
             key

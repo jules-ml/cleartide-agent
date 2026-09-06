@@ -32,7 +32,7 @@ class AgentState(TypedDict, total=False):
     latency_ms: float
     reasoning_mode: str
 
-    # ========================================================
+     # ========================================================
     # CLASSIFICATION
     # ========================================================
 
@@ -46,6 +46,10 @@ class AgentState(TypedDict, total=False):
 
     payment_evidence: dict
 
+    payment_history_evidence: dict
+
+    prior_promises_evidence: dict
+
     account_evidence: dict
 
     risk_evidence: dict
@@ -57,11 +61,7 @@ class AgentState(TypedDict, total=False):
     # ========================================================
 
     tool_call_count: int
-
-    tool_call_signatures: dict[str, int]
-
-    guard_violation_reason: str
-
+    
     # ========================================================
     # PROPOSED DECISION
     # ========================================================

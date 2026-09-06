@@ -93,7 +93,7 @@
   },
   {
     "case_id": "GOLD-005",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
@@ -109,13 +109,14 @@
     "allowed_tools": [
       "get_payment_history",
       "get_risk_score",
-      "get_prior_promises"
+      "get_prior_promises",
+      "get_account_history"
     ],
     "notes": "Future payment-plan branch. MEDIUM fixture risk currently does not permit autonomous plan approval."
   },
   {
     "case_id": "GOLD-006",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
@@ -131,7 +132,8 @@
     "allowed_tools": [
       "get_payment_history",
       "get_risk_score",
-      "get_prior_promises"
+      "get_prior_promises",
+      "get_account_history"
     ],
     "notes": "Future payment-plan branch."
   },
