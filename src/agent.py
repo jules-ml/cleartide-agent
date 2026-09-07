@@ -675,6 +675,201 @@ def mock_recommend_payment_plan_action(
 
 
 # ============================================================
+# MOCK PROMISE-TO-PAY ACTION RECOMMENDER
+# ============================================================
+
+def mock_recommend_promise_to_pay_action(
+    state: AgentState,
+) -> AgentActionRecommendation:
+    """
+    Zero-cost deterministic development stand-in for the
+    future LLM reasoning step for PROMISE_TO_PAY.
+
+    The recommendation uses exact structured memory from
+    get_prior_promises together with the trusted risk band.
+
+    Development behavior:
+
+        prior broken promise
+            -> FLAG_FOR_HUMAN_CALL
+
+        HIGH / CRITICAL risk
+            -> FLAG_FOR_HUMAN_CALL
+
+        otherwise, if email is permitted
+            -> SEND_MESSAGE acknowledging the promise
+
+        otherwise
+            -> FLAG_FOR_HUMAN_CALL
+    """
+
+    promise_data = state[
+        "prior_promises_evidence"
+    ][
+        "data"
+    ]
+
+    promises = (
+        promise_data.get(
+            "promises",
+            [],
+        )
+        or []
+    )
+
+    broken_promises = [
+        promise
+        for promise in promises
+        if str(
+            promise.get(
+                "status",
+                "",
+            )
+        ).upper()
+        == "BROKEN"
+    ]
+
+    broken_promise_count = len(
+        broken_promises
+    )
+
+    risk = state[
+        "risk"
+    ]
+
+    risk_band_value = (
+        risk.band.value
+    )
+
+    account_data = state[
+        "account_evidence"
+    ][
+        "data"
+    ][
+        "account"
+    ]
+
+    email_allowed = bool(
+        account_data.get(
+            "email_allowed",
+            False,
+        )
+    )
+
+    # ========================================================
+    # CASE 1
+    # PRIOR BROKEN PROMISE EXISTS
+    # ========================================================
+
+    if broken_promise_count > 0:
+
+        return AgentActionRecommendation(
+            action_type=(
+                ActionType.FLAG_FOR_HUMAN_CALL
+            ),
+
+            target_channel=(
+                Channel.HUMAN_CALL_FLAG
+            ),
+
+            message_body=None,
+
+            rationale=(
+                "The customer made a new promise to pay, "
+                f"but structured account memory shows "
+                f"{broken_promise_count} prior broken "
+                "promise(s). Human follow-up is appropriate "
+                "rather than treating the new promise as a "
+                "routine commitment."
+            ),
+        )
+
+    # ========================================================
+    # CASE 2
+    # HIGH OR CRITICAL RISK
+    # ========================================================
+
+    if risk_band_value in {
+        "HIGH",
+        "CRITICAL",
+    }:
+
+        return AgentActionRecommendation(
+            action_type=(
+                ActionType.FLAG_FOR_HUMAN_CALL
+            ),
+
+            target_channel=(
+                Channel.HUMAN_CALL_FLAG
+            ),
+
+            message_body=None,
+
+            rationale=(
+                "The customer made a new promise to pay, "
+                f"but the trusted risk band is "
+                f"{risk_band_value}. Human follow-up is "
+                "appropriate for this higher-risk account."
+            ),
+        )
+
+    # ========================================================
+    # CASE 3
+    # ROUTINE ACKNOWLEDGEMENT
+    # ========================================================
+
+    if email_allowed:
+
+        return AgentActionRecommendation(
+            action_type=(
+                ActionType.SEND_MESSAGE
+            ),
+
+            target_channel=(
+                Channel.EMAIL
+            ),
+
+            message_body=(
+                "Thank you for the update. We have noted "
+                "your commitment to make the payment as "
+                "described in your message."
+            ),
+
+            rationale=(
+                "The customer made a promise to pay. "
+                "Structured promise history contains no "
+                "prior broken promises requiring additional "
+                "attention, the current risk band is "
+                f"{risk_band_value}, and email communication "
+                "is permitted."
+            ),
+        )
+
+    # ========================================================
+    # CASE 4
+    # NO PERMITTED EMAIL CHANNEL
+    # ========================================================
+
+    return AgentActionRecommendation(
+        action_type=(
+            ActionType.FLAG_FOR_HUMAN_CALL
+        ),
+
+        target_channel=(
+            Channel.HUMAN_CALL_FLAG
+        ),
+
+        message_body=None,
+
+        rationale=(
+            "The customer made a promise to pay, but the "
+            "account does not permit email communication. "
+            "Human follow-up is required."
+        ),
+    )
+
+
+# ============================================================
 # NODE 0
 # INITIALIZE DECISION
 # ============================================================
@@ -765,6 +960,7 @@ def route_after_classification(
         DELIVERY_DISPUTE
         ALREADY_PAID_CLAIM
         PAYMENT_PLAN_REQUEST
+        PROMISE_TO_PAY
 
     Everything else continues to fail closed.
     """
@@ -795,6 +991,13 @@ def route_after_classification(
     ):
 
         return "payment_plan_request"
+
+    if (
+        primary_intent
+        == Intent.PROMISE_TO_PAY
+    ):
+
+        return "promise_to_pay"
 
     return "unsupported_intent"
 
@@ -1882,6 +2085,343 @@ def gather_payment_plan_evidence_node(
 
 
 # ============================================================
+# NODE 2D
+# GUARDED PROMISE-TO-PAY EVIDENCE RETRIEVAL
+# ============================================================
+
+def gather_promise_to_pay_evidence_node(
+    state: AgentState,
+) -> dict:
+    """
+    Gather evidence required for PROMISE_TO_PAY.
+
+    Required evidence:
+
+        get_prior_promises
+        get_risk_score
+
+    Additional structured context:
+
+        get_account_history
+
+    Every tool invocation passes through the deterministic
+    tool guard and is tied to the current decision_id.
+    """
+
+    guard = ToolGuardState(
+        decision_id=state[
+            "decision_id"
+        ],
+
+        total_calls=state.get(
+            "tool_call_count",
+            0,
+        ),
+
+        signature_counts=dict(
+            state.get(
+                "tool_call_signatures",
+                {},
+            )
+        ),
+    )
+
+    update = {}
+
+    # ========================================================
+    # TOOL 1
+    # PRIOR PROMISE MEMORY
+    # ========================================================
+
+    prior_promises_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_prior_promises"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_prior_promises
+            ),
+        )
+    )
+
+    update[
+        "prior_promises_evidence"
+    ] = prior_promises_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        prior_promises_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_prior_promises "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 2
+    # ACCOUNT CONTEXT
+    # ========================================================
+
+    account_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_account_history"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_account_history
+            ),
+        )
+    )
+
+    update[
+        "account_evidence"
+    ] = account_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        account_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_account_history "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 3
+    # TRUSTED RISK SCORE
+    # ========================================================
+
+    risk_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_risk_score"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ],
+
+                "invoice_id":
+                    state[
+                        "invoice_id"
+                    ],
+            },
+
+            tool_function=(
+                get_risk_score
+            ),
+        )
+    )
+
+    update[
+        "risk_evidence"
+    ] = risk_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        risk_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_risk_score "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # BUILD TRUSTED RISK OBJECT
+    # ========================================================
+
+    risk_data = (
+        risk_result[
+            "data"
+        ]
+    )
+
+    trusted_risk = RiskResult(
+        score=(
+            risk_data[
+                "score"
+            ]
+        ),
+
+        band=(
+            risk_data[
+                "risk_band"
+            ]
+        ),
+
+        model_version=(
+            risk_data[
+                "model_version"
+            ]
+        ),
+
+        contributing_factors=(
+            risk_data.get(
+                "contributing_factors"
+            )
+            or []
+        ),
+    )
+
+    update[
+        "risk"
+    ] = trusted_risk
+
+    update[
+        "tool_call_count"
+    ] = guard.total_calls
+
+    update[
+        "tool_call_signatures"
+    ] = dict(
+        guard.signature_counts
+    )
+
+    return update
+
+
+# ============================================================
 # ROUTE AFTER EVIDENCE
 # ============================================================
 
@@ -2060,6 +2600,41 @@ def propose_action_node(
                     risk.band.value
                 )
             )
+
+    # ========================================================
+    # PROMISE TO PAY
+    # ========================================================
+
+    elif (
+        primary_intent
+        == Intent.PROMISE_TO_PAY
+    ):
+
+        recommendation = (
+            mock_recommend_promise_to_pay_action(
+                state
+            )
+        )
+
+        tool_call_ids = [
+            state[
+                "prior_promises_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "account_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "risk_evidence"
+            ][
+                "tool_call_id"
+            ],
+        ]
 
     # ========================================================
     # DEFENSIVE FAIL CLOSED
@@ -2589,6 +3164,11 @@ def build_graph():
     )
 
     builder.add_node(
+        "gather_promise_to_pay_evidence",
+        gather_promise_to_pay_evidence_node,
+    )
+
+    builder.add_node(
         "propose_action",
         propose_action_node,
     )
@@ -2661,64 +3241,34 @@ def build_graph():
             "payment_plan_request":
                 "gather_payment_plan_evidence",
 
+            "promise_to_pay":
+                "gather_promise_to_pay_evidence",
+
             "unsupported_intent":
                 "unsupported_intent",
         },
     )
 
     # ========================================================
-    # DELIVERY EVIDENCE ROUTE
+    # EVIDENCE ROUTES
     # ========================================================
 
-    builder.add_conditional_edges(
+    for evidence_node in (
         "gather_delivery_evidence",
-
-        route_after_evidence,
-
-        {
-            "propose_action":
-                "propose_action",
-
-            "forced_escalation":
-                "forced_escalation",
-        },
-    )
-
-    # ========================================================
-    # ALREADY-PAID EVIDENCE ROUTE
-    # ========================================================
-
-    builder.add_conditional_edges(
         "gather_already_paid_evidence",
-
-        route_after_evidence,
-
-        {
-            "propose_action":
-                "propose_action",
-
-            "forced_escalation":
-                "forced_escalation",
-        },
-    )
-
-    # ========================================================
-    # PAYMENT-PLAN EVIDENCE ROUTE
-    # ========================================================
-
-    builder.add_conditional_edges(
         "gather_payment_plan_evidence",
-
-        route_after_evidence,
-
-        {
-            "propose_action":
-                "propose_action",
-
-            "forced_escalation":
-                "forced_escalation",
-        },
-    )
+        "gather_promise_to_pay_evidence",
+    ):
+        builder.add_conditional_edges(
+            evidence_node,
+            route_after_evidence,
+            {
+                "propose_action":
+                    "propose_action",
+                "forced_escalation":
+                    "forced_escalation",
+            },
+        )
 
     # ========================================================
     # PROPOSAL -> VALIDATOR
