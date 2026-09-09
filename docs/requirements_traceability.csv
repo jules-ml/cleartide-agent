@@ -4,7 +4,7 @@ FR-1.2,Intent Classification,Return confidence from 0 to 1,src/schemas.py; src/a
 FR-1.3,Intent Classification,Escalate below configured confidence threshold,src/policy.py; config/policy.yaml,tests/test_policy.py,IMPLEMENTED,Deterministic threshold enforcement
 FR-1.4,Intent Classification,Support secondary intents and policy precedence,src/schemas.py; src/agent.py; config/policy.yaml,tests/test_evaluation.py,PARTIAL,Precedence implemented in development classifier
 FR-1.5,Intent Classification,UNCLEAR always escalates,src/policy.py; src/agent.py,tests/test_policy.py,IMPLEMENTED,Fail-closed behavior tested
-FR-2.1,Evidence,Do not assert invoice or payment facts without tool retrieval,src/tools.py; src/agent.py,tests/test_step9.py; tests/test_agent_step12.py,PARTIAL,Implemented for delivery already-paid and payment-plan vertical slices; remaining branches open
+FR-2.1,Evidence,Do not assert invoice or payment facts without tool retrieval,src/tools.py; src/agent.py,tests/test_step9.py; tests/test_agent_step12.py,PARTIAL,"Implemented for delivery, already-paid, payment-plan, and promise-to-pay vertical slices; remaining branches open."
 FR-2.2,Evidence,DELIVERY_DISPUTE must invoke verify_invoice_delivery,src/tools.py; src/agent.py,tests/test_evaluation.py,IMPLEMENTED,Active golden cases verify required tool
 FR-2.3,Evidence,ALREADY_PAID_CLAIM must invoke reconcile_payment_claim,src/tools.py; src/agent.py,tests/test_agent_step11.py; evals/golden_cases.json,IMPLEMENTED,Already-paid branch invokes deterministic ledger reconciliation before proposing action
 FR-2.4,Evidence,PAYMENT_PLAN_REQUEST must invoke get_payment_history and get_risk_score,src/tools.py; src/agent.py,tests/test_agent_step12.py; evals/golden_cases.json,IMPLEMENTED,Payment-plan branch retrieves payment history and trusted risk before proposing terms
@@ -12,7 +12,7 @@ FR-2.5,Evidence,Maximum tool calls per decision defaults to eight,src/tool_guard
 FR-2.6,Evidence,Identical tool and identical arguments may occur at most twice,src/tool_guard.py,tests/test_step9.py,IMPLEMENTED,Third identical call blocked
 FR-2.7,Evidence,Required tool error or no result causes escalation,src/tool_guard.py; src/agent.py,tests/test_step9.py,IMPLEMENTED,Current required-tool path fails closed
 FR-2.8,Evidence,Record every tool call and result with an identifier,src/tools.py; src/audit.py,tests/test_step9.py,IMPLEMENTED,Tool calls linked to decision_id and persisted
-FR-3.1,Risk,Obtain risk score through tool before autonomous action,src/tools.py; src/agent.py,tests/test_evaluation.py; tests/test_agent_step12.py,PARTIAL,Implemented in delivery already-paid and payment-plan slices; remaining intent branches open
+FR-3.1,Risk,Obtain risk score through tool before autonomous action,src/tools.py; src/agent.py,tests/test_evaluation.py; tests/test_agent_step12.py,PARTIAL,"Trusted risk retrieval is implemented in delivery, already-paid, payment-plan, and promise-to-pay slices; remaining intent branches are open."
 FR-3.2,Risk,LLM must not generate substitute risk score,src/agent.py,tests/test_evaluation.py,IMPLEMENTED,Trusted risk injected from tool result
 FR-3.3,Risk,Policy decisions use risk band rather than raw score,src/policy.py; config/policy.yaml,tests/test_policy.py,PARTIAL,Payment-plan policy uses risk band; broader rules remain
 FR-3.4,Risk,Missing or stale risk defaults to highest risk band,config/policy.yaml; src/policy.py,Future regression test,PARTIAL,Policy setting exists; stale-time enforcement still open
@@ -33,7 +33,7 @@ FR-6.1,Escalation,Escalation packet contains reply intent tools risk proposed ac
 FR-6.2,Escalation,Suspend autonomous action until human disposition,src/agent.py,tests/test_step9.py,PARTIAL,Escalation ends autonomous decision; review workflow not built
 FR-6.3,Escalation,Record human disposition,escalations.human_disposition,Future review-interface test,OPEN,Database field exists but no review workflow yet
 FR-6.4,Escalation,Packet must be legible to nontechnical reviewer,src/audit.py,Human review evaluation,PARTIAL,Structured packet exists; usability review still required
-FR-7.1,Account Memory,Retrieve prior promises before a new promise,src/tools.py,Future promise branch test,PARTIAL,get_prior_promises exists; branch open
+FR-7.1,Account Memory,Retrieve prior promises before a new promise,src/tools.py,Future promise branch test,IMPLEMENTED,PROMISE_TO_PAY retrieves prior promises before selecting a new action; a prior broken promise changes the decision to human follow-up.
 FR-7.2,Account Memory,Retrieve prior disputes and resolutions,src/tools.py,Future dispute branch test,PARTIAL,get_prior_disputes exists; branch open
 FR-7.3,Account Memory,Retrieve prior escalations and dispositions,src/tools.py,Future escalation-memory test,PARTIAL,get_prior_escalations exists; branch integration open
 FR-7.4,Account Memory,Third unsupported ALREADY_PAID_CLAIM mandates escalation,Planned agent memory rule,Future regression test,OPEN,Not implemented yet

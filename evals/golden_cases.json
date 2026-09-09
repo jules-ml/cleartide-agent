@@ -183,15 +183,15 @@
   },
   {
     "case_id": "GOLD-009",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
     "invoice_id": 5001,
     "reply_text": "We will pay on Friday.",
     "expected_intent": "PROMISE_TO_PAY",
-    "expected_final_status": null,
-    "expected_final_action": null,
+    "expected_final_status": "APPROVED",
+    "expected_final_action": "FLAG_FOR_HUMAN_CALL",
     "required_tools": [
       "get_prior_promises",
       "get_risk_score"
@@ -201,7 +201,7 @@
       "get_risk_score",
       "get_account_history"
     ],
-    "notes": "Future promise-to-pay branch."
+    "notes": "PROMISE_TO_PAY retrieves prior promise memory and trusted risk. The development fixture contains a prior BROKEN promise, so the agent selects human follow-up rather than routine autonomous handling."
   },
   {
     "case_id": "GOLD-010",
