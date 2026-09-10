@@ -38,7 +38,7 @@ FR-7.2,Account Memory,Retrieve prior disputes and resolutions,src/tools.py; src/
 FR-7.3,Account Memory,Retrieve prior escalations and dispositions,src/tools.py,Future escalation-memory test,PARTIAL,get_prior_escalations exists; branch integration open
 FR-7.4,Account Memory,Third unsupported ALREADY_PAID_CLAIM mandates escalation,Planned agent memory rule,Future regression test,OPEN,Not implemented yet
 FR-7.5,Account Memory,Use exact relational records when exact query exists,src/tools.py; src/audit.py,tests/test_step9.py,IMPLEMENTED,SQLite relational queries used
-PR-1,Policy,Classify debt as CONSUMER or COMMERCIAL and default ambiguity to CONSUMER,accounts.debt_type; src/audit.py,Future debt-classification tests,PARTIAL,Field and audit capture exist; deterministic classification rule still open
+PR-1,Policy,Classify debt as CONSUMER or COMMERCIAL and default ambiguity to CONSUMER,accounts.debt_type; src/policy.py; src/agent.py; src/audit.py,tests/test_agent_step18.py,IMPLEMENTED,Deterministic resolver preserves valid classifications and defaults null blank or invalid values to CONSUMER; normalized classification is carried in live agent state passed to policy validation and persisted in audit
 PR-2.1,Contact Policy,Consumer SMS or telephone restricted outside configured hours,config/policy.yaml,Future quiet-hours tests,OPEN,Configuration exists but enforcement not yet implemented
 PR-2.2,Contact Policy,Email exempt from quiet hours while honoring preference,config/policy.yaml,Future channel tests,OPEN,Configuration exists
 PR-2.3,Contact Policy,Enforce rolling seven-day contact-frequency limit,config/policy.yaml,Future contact-frequency tests,OPEN,Configuration exists but enforcement open

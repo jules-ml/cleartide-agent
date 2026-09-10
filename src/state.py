@@ -2,6 +2,7 @@ from typing import TypedDict
 
 from src.schemas import (
     ActionType,
+    DebtClassification,
     EscalationPacket,
     IntentClassification,
     PolicyValidationResult,
@@ -37,6 +38,8 @@ class AgentState(TypedDict, total=False):
     # ========================================================
 
     intent: IntentClassification
+
+    debt_classification: DebtClassification
 
     # ========================================================
     # TOOL EVIDENCE

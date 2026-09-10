@@ -17,6 +17,7 @@ from src.policy import (
     check_unclear_intent,
     escalate,
     load_policy,
+    resolve_debt_classification,
     resolve_risk_result,
     validate_action,
 )
@@ -1369,6 +1370,20 @@ def gather_delivery_evidence_node(
 
         return update
 
+    update[
+        "debt_classification"
+    ] = resolve_debt_classification(
+        account_result.get(
+            "data",
+            {},
+        ).get(
+            "account",
+            {},
+        ).get(
+            "debt_type"
+        )
+    )
+
     # ========================================================
     # TOOL 3
     # RISK SCORE
@@ -1680,6 +1695,20 @@ def gather_already_paid_evidence_node(
         )
 
         return update
+
+    update[
+        "debt_classification"
+    ] = resolve_debt_classification(
+        account_result.get(
+            "data",
+            {},
+        ).get(
+            "account",
+            {},
+        ).get(
+            "debt_type"
+        )
+    )
 
     # ========================================================
     # TOOL 3
@@ -2071,6 +2100,20 @@ def gather_payment_plan_evidence_node(
 
         return update
 
+    update[
+        "debt_classification"
+    ] = resolve_debt_classification(
+        account_result.get(
+            "data",
+            {},
+        ).get(
+            "account",
+            {},
+        ).get(
+            "debt_type"
+        )
+    )
+
     # ========================================================
     # TOOL 4
     # TRUSTED RISK SCORE
@@ -2381,6 +2424,20 @@ def gather_promise_to_pay_evidence_node(
         )
 
         return update
+
+    update[
+        "debt_classification"
+    ] = resolve_debt_classification(
+        account_result.get(
+            "data",
+            {},
+        ).get(
+            "account",
+            {},
+        ).get(
+            "debt_type"
+        )
+    )
 
     # ========================================================
     # TOOL 3
@@ -2693,6 +2750,20 @@ def gather_amount_dispute_evidence_node(
         )
 
         return update
+
+    update[
+        "debt_classification"
+    ] = resolve_debt_classification(
+        account_result.get(
+            "data",
+            {},
+        ).get(
+            "account",
+            {},
+        ).get(
+            "debt_type"
+        )
+    )
 
     # ========================================================
     # TOOL 3
@@ -3184,6 +3255,12 @@ def validate_proposal_node(
         reply_text=(
             state[
                 "reply_text"
+            ]
+        ),
+
+        debt_classification=(
+            state[
+                "debt_classification"
             ]
         ),
 

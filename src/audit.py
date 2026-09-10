@@ -1,7 +1,10 @@
 import json
 
 from src.database import get_connection
-from src.policy import load_policy
+from src.policy import (
+    load_policy,
+    resolve_debt_classification,
+)
 from src.schemas import EscalationPacket
 
 
@@ -578,6 +581,10 @@ def finalize_decision(
             debt_classification = (
                 row["debt_type"]
             )
+
+    debt_classification = resolve_debt_classification(
+        debt_classification
+    ).value
 
     conn.execute(
         """

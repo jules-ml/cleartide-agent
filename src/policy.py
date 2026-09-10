@@ -8,6 +8,7 @@ import yaml
 from src.schemas import (
     ActionType,
     Channel,
+    DebtClassification,
     Intent,
     PolicyValidationResult,
     ProposedAction,
@@ -163,6 +164,25 @@ def determine_disputed_amount(
     return round(disputed_amount, 2)
 
 
+def resolve_debt_classification(
+    debt_type: Optional[str | DebtClassification],
+) -> DebtClassification:
+    """PR-1: normalize debt type and default ambiguity to CONSUMER."""
+
+    if isinstance(debt_type, DebtClassification):
+        return debt_type
+
+    if isinstance(debt_type, str):
+        normalized = debt_type.strip().upper()
+
+        if normalized == DebtClassification.COMMERCIAL.value:
+            return DebtClassification.COMMERCIAL
+
+        if normalized == DebtClassification.CONSUMER.value:
+            return DebtClassification.CONSUMER
+
+    return DebtClassification.CONSUMER
+
 def resolve_risk_result(
     risk_tool_result: dict,
     *,
@@ -313,6 +333,7 @@ def validate_action(
     primary_intent: Intent,
     intent_confidence: float,
     reply_text: str,
+    debt_classification: Optional[DebtClassification] = None,
     ledger_amount: Optional[float] = None,
     sms_consent: bool = False,
     channel_opted_out: bool = False,
@@ -331,6 +352,11 @@ def validate_action(
     """
 
     policy = load_policy()
+
+    # PR-1 — normalize debt classification before policy evaluation.
+    debt_classification = resolve_debt_classification(
+        debt_classification
+    )
 
     # --------------------------------------------------------
     # PR-6.3 — policy version consistency
