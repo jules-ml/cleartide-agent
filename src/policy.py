@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 from typing import Optional
 
 import yaml
@@ -91,6 +92,75 @@ def escalate(
     )
 
 
+def determine_disputed_amount(
+    reply_text: str,
+    ledger_amount: float,
+) -> Optional[float]:
+    """
+    Deterministically derive the disputed amount from explicit
+    dollar values in the customer reply and the trusted ledger.
+
+    Conservative behavior:
+        - requires explicit $ amounts in the reply
+        - requires one value to match the ledger amount
+        - requires exactly one distinct alternative amount
+        - ambiguous or incomplete input returns None
+    """
+
+    matches = re.findall(
+        r"\$\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        reply_text,
+    )
+
+    amounts = []
+
+    for match in matches:
+        try:
+            amount = float(
+                match.replace(",", "")
+            )
+        except ValueError:
+            continue
+
+        amounts.append(amount)
+
+    unique_amounts = []
+
+    for amount in amounts:
+        if not any(
+            abs(amount - existing) < 0.01
+            for existing in unique_amounts
+        ):
+            unique_amounts.append(amount)
+
+    ledger_matches = [
+        amount
+        for amount in unique_amounts
+        if abs(amount - ledger_amount) < 0.01
+    ]
+
+    alternatives = [
+        amount
+        for amount in unique_amounts
+        if abs(amount - ledger_amount) >= 0.01
+    ]
+
+    if len(ledger_matches) != 1:
+        return None
+
+    if len(alternatives) != 1:
+        return None
+
+    disputed_amount = abs(
+        ledger_amount - alternatives[0]
+    )
+
+    if disputed_amount <= 0:
+        return None
+
+    return round(disputed_amount, 2)
+
+
 # ============================================================
 # MAIN VALIDATOR
 # ============================================================
@@ -101,6 +171,7 @@ def validate_action(
     primary_intent: Intent,
     intent_confidence: float,
     reply_text: str,
+    ledger_amount: Optional[float] = None,
     sms_consent: bool = False,
     channel_opted_out: bool = False,
 ) -> PolicyValidationResult:
@@ -201,6 +272,46 @@ def validate_action(
                 + ", ".join(matched_terms)
             ),
         )
+
+    # --------------------------------------------------------
+    # PR-5.4 — disputed amount escalation threshold
+    # --------------------------------------------------------
+
+    if primary_intent == Intent.AMOUNT_DISPUTE:
+
+        if ledger_amount is None:
+            return escalate(
+                "PR-5.4",
+                "Trusted ledger amount is unavailable for the disputed invoice.",
+            )
+
+        disputed_amount = determine_disputed_amount(
+            reply_text,
+            ledger_amount,
+        )
+
+        if disputed_amount is None:
+            return escalate(
+                "PR-5.4",
+                (
+                    "The disputed amount could not be determined "
+                    "unambiguously from the reply and trusted ledger."
+                ),
+            )
+
+        disputed_amount_threshold = float(
+            policy["escalation"]["disputed_amount_threshold"]
+        )
+
+        if disputed_amount > disputed_amount_threshold:
+            return escalate(
+                "PR-5.4",
+                (
+                    f"Disputed amount ${disputed_amount:,.2f} exceeds "
+                    f"the ${disputed_amount_threshold:,.2f} "
+                    "mandatory-escalation threshold."
+                ),
+            )
 
     # --------------------------------------------------------
     # PR-4.2 / PR-4.3 — channel opt-out

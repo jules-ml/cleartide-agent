@@ -205,17 +205,18 @@
   },
   {
     "case_id": "GOLD-010",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
     "invoice_id": 5001,
-    "reply_text": "The amount is wrong. We were overcharged.",
+    "reply_text": "The invoice amount is wrong. We agreed on $8,500, not $8,750.",
     "expected_intent": "AMOUNT_DISPUTE",
-    "expected_final_status": null,
-    "expected_final_action": null,
+    "expected_final_status": "APPROVED",
+    "expected_final_action": "LOG_DISPUTE_AND_HOLD",
     "required_tools": [
       "get_prior_disputes",
+      "get_account_history",
       "get_risk_score"
     ],
     "allowed_tools": [
@@ -223,7 +224,7 @@
       "get_account_history",
       "get_risk_score"
     ],
-    "notes": "Future amount-dispute branch."
+    "notes": "AMOUNT_DISPUTE retrieves prior dispute memory, trusted ledger evidence, and trusted risk. The customer disputes a $250 difference from the $8,750 ledger amount, below the configured $5,000 PR-5.4 escalation threshold, so the agent logs the dispute and places collections activity on hold."
   },
   {
     "case_id": "GOLD-011",

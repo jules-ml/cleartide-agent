@@ -38,6 +38,7 @@ from src.tool_guard import (
 from src.tools import (
     get_account_history,
     get_payment_history,
+    get_prior_disputes,
     get_prior_promises,
     get_risk_score,
     reconcile_payment_claim,
@@ -870,6 +871,156 @@ def mock_recommend_promise_to_pay_action(
 
 
 # ============================================================
+# MOCK AMOUNT-DISPUTE ACTION RECOMMENDER
+# ============================================================
+
+def mock_recommend_amount_dispute_action(
+    state: AgentState,
+) -> AgentActionRecommendation:
+    """
+    Zero-cost deterministic development stand-in for the
+    future LLM reasoning step for AMOUNT_DISPUTE.
+
+    This reasoning step uses exact structured dispute memory
+    plus the trusted risk result. It deliberately does not
+    enforce the disputed-amount authority threshold here;
+    that is a hard policy constraint and belongs in the
+    deterministic validator.
+
+    Development behavior:
+
+        unresolved prior amount dispute
+            -> FLAG_FOR_HUMAN_CALL
+
+        otherwise
+            -> LOG_DISPUTE_AND_HOLD
+
+    LOG_DISPUTE_AND_HOLD is an internal collections hold,
+    not a service-hold action and not a customer-facing
+    communication.
+    """
+
+    dispute_data = state[
+        "prior_disputes_evidence"
+    ][
+        "data"
+    ]
+
+    disputes = (
+        dispute_data.get(
+            "disputes",
+            [],
+        )
+        or []
+    )
+
+    prior_amount_disputes = [
+        dispute
+        for dispute in disputes
+        if str(
+            dispute.get(
+                "dispute_type",
+                "",
+            )
+        ).upper()
+        == "AMOUNT_DISPUTE"
+    ]
+
+    unresolved_amount_disputes = [
+        dispute
+        for dispute in prior_amount_disputes
+        if str(
+            dispute.get(
+                "status",
+                "",
+            )
+        ).upper()
+        not in {
+            "RESOLVED",
+            "CLOSED",
+        }
+    ]
+
+    risk = state[
+        "risk"
+    ]
+
+    risk_band_value = (
+        risk.band.value
+    )
+
+    # ========================================================
+    # CASE 1
+    # EXISTING UNRESOLVED AMOUNT DISPUTE
+    # ========================================================
+
+    if unresolved_amount_disputes:
+
+        return AgentActionRecommendation(
+            action_type=(
+                ActionType.FLAG_FOR_HUMAN_CALL
+            ),
+
+            target_channel=(
+                Channel.HUMAN_CALL_FLAG
+            ),
+
+            message_body=None,
+
+            rationale=(
+                "The customer raised an amount dispute, and "
+                "structured account memory shows an existing "
+                "unresolved amount dispute. Human review is "
+                "required before another autonomous dispute "
+                "action is recorded. The trusted risk band is "
+                f"{risk_band_value}."
+            ),
+        )
+
+    # ========================================================
+    # CASE 2
+    # NEW AMOUNT DISPUTE WITH NO UNRESOLVED DUPLICATE
+    # ========================================================
+
+    resolved_count = sum(
+        1
+        for dispute in prior_amount_disputes
+        if str(
+            dispute.get(
+                "status",
+                "",
+            )
+        ).upper()
+        in {
+            "RESOLVED",
+            "CLOSED",
+        }
+    )
+
+    return AgentActionRecommendation(
+        action_type=(
+            ActionType.LOG_DISPUTE_AND_HOLD
+        ),
+
+        target_channel=None,
+
+        message_body=None,
+
+        rationale=(
+            "The customer raised an amount dispute. Exact "
+            "structured dispute history was retrieved before "
+            "the recommendation. There are no unresolved prior "
+            "amount disputes requiring immediate human review; "
+            f"{resolved_count} prior resolved amount dispute(s) "
+            "were found. The trusted risk band is "
+            f"{risk_band_value}. Record the dispute and pause "
+            "autonomous collections activity while the amount "
+            "is reviewed."
+        ),
+    )
+
+
+# ============================================================
 # NODE 0
 # INITIALIZE DECISION
 # ============================================================
@@ -998,6 +1149,13 @@ def route_after_classification(
     ):
 
         return "promise_to_pay"
+
+    if (
+        primary_intent
+        == Intent.AMOUNT_DISPUTE
+    ):
+
+        return "amount_dispute"
 
     return "unsupported_intent"
 
@@ -2422,6 +2580,344 @@ def gather_promise_to_pay_evidence_node(
 
 
 # ============================================================
+# NODE 2E
+# GUARDED AMOUNT-DISPUTE EVIDENCE RETRIEVAL
+# ============================================================
+
+def gather_amount_dispute_evidence_node(
+    state: AgentState,
+) -> dict:
+    """
+    Gather evidence required for AMOUNT_DISPUTE.
+
+    Required structured memory/context:
+
+        get_prior_disputes
+        get_account_history
+        get_risk_score
+
+    Exact relational dispute history is retrieved before the
+    recommender reasons about whether the new dispute can be
+    logged and held or requires human review.
+
+    Every tool invocation passes through the deterministic
+    tool guard and is tied to the current decision_id.
+    """
+
+    guard = ToolGuardState(
+        decision_id=state[
+            "decision_id"
+        ],
+
+        total_calls=state.get(
+            "tool_call_count",
+            0,
+        ),
+
+        signature_counts=dict(
+            state.get(
+                "tool_call_signatures",
+                {},
+            )
+        ),
+    )
+
+    update = {}
+
+    # ========================================================
+    # TOOL 1
+    # PRIOR DISPUTE MEMORY
+    # ========================================================
+
+    prior_disputes_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_prior_disputes"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_prior_disputes
+            ),
+        )
+    )
+
+    update[
+        "prior_disputes_evidence"
+    ] = prior_disputes_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        prior_disputes_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_prior_disputes "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 2
+    # ACCOUNT CONTEXT
+    # ========================================================
+
+    account_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_account_history"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_account_history
+            ),
+        )
+    )
+
+    update[
+        "account_evidence"
+    ] = account_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        account_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_account_history "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 3
+    # TRUSTED RISK SCORE
+    # ========================================================
+
+    risk_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_risk_score"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ],
+
+                "invoice_id":
+                    state[
+                        "invoice_id"
+                    ],
+            },
+
+            tool_function=(
+                get_risk_score
+            ),
+        )
+    )
+
+    update[
+        "risk_evidence"
+    ] = risk_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        risk_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_risk_score "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # BUILD TRUSTED RISK OBJECT
+    # ========================================================
+
+    risk_data = (
+        risk_result[
+            "data"
+        ]
+    )
+
+    trusted_risk = RiskResult(
+        score=(
+            risk_data[
+                "score"
+            ]
+        ),
+
+        band=(
+            risk_data[
+                "risk_band"
+            ]
+        ),
+
+        model_version=(
+            risk_data[
+                "model_version"
+            ]
+        ),
+
+        contributing_factors=(
+            risk_data.get(
+                "contributing_factors"
+            )
+            or []
+        ),
+    )
+
+    update[
+        "risk"
+    ] = trusted_risk
+
+    update[
+        "tool_call_count"
+    ] = guard.total_calls
+
+    update[
+        "tool_call_signatures"
+    ] = dict(
+        guard.signature_counts
+    )
+
+    return update
+
+
+# ============================================================
 # ROUTE AFTER EVIDENCE
 # ============================================================
 
@@ -2637,6 +3133,41 @@ def propose_action_node(
         ]
 
     # ========================================================
+    # AMOUNT DISPUTE
+    # ========================================================
+
+    elif (
+        primary_intent
+        == Intent.AMOUNT_DISPUTE
+    ):
+
+        recommendation = (
+            mock_recommend_amount_dispute_action(
+                state
+            )
+        )
+
+        tool_call_ids = [
+            state[
+                "prior_disputes_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "account_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "risk_evidence"
+            ][
+                "tool_call_id"
+            ],
+        ]
+
+    # ========================================================
     # DEFENSIVE FAIL CLOSED
     # ========================================================
 
@@ -2727,6 +3258,26 @@ def validate_proposal_node(
         )
     )
 
+    invoice_records = state[
+        "account_evidence"
+    ][
+        "data"
+    ].get(
+        "invoices",
+        [],
+    )
+
+    ledger_amount = next(
+        (
+            float(invoice["amount"])
+            for invoice in invoice_records
+            if int(invoice["invoice_id"])
+            == int(state["invoice_id"])
+            and invoice.get("amount") is not None
+        ),
+        None,
+    )
+
     validation = validate_action(
         proposal,
 
@@ -2746,6 +3297,10 @@ def validate_proposal_node(
             state[
                 "reply_text"
             ]
+        ),
+
+        ledger_amount=(
+            ledger_amount
         ),
 
         sms_consent=(
@@ -3169,6 +3724,11 @@ def build_graph():
     )
 
     builder.add_node(
+        "gather_amount_dispute_evidence",
+        gather_amount_dispute_evidence_node,
+    )
+
+    builder.add_node(
         "propose_action",
         propose_action_node,
     )
@@ -3244,6 +3804,9 @@ def build_graph():
             "promise_to_pay":
                 "gather_promise_to_pay_evidence",
 
+            "amount_dispute":
+                "gather_amount_dispute_evidence",
+
             "unsupported_intent":
                 "unsupported_intent",
         },
@@ -3258,6 +3821,7 @@ def build_graph():
         "gather_already_paid_evidence",
         "gather_payment_plan_evidence",
         "gather_promise_to_pay_evidence",
+        "gather_amount_dispute_evidence",
     ):
         builder.add_conditional_edges(
             evidence_node,
