@@ -258,7 +258,7 @@
   },
   {
     "case_id": "GOLD-013",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
@@ -269,11 +269,11 @@
     "expected_final_action": "ESCALATE",
     "required_tools": [],
     "allowed_tools": [],
-    "notes": "UNCLEAR must escalate."
+    "notes": "UNCLEAR short-reply case. Deterministic FR-1.5 policy requires escalation with zero tool calls and no fabricated risk or proposal."
   },
   {
     "case_id": "GOLD-014",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
@@ -284,6 +284,6 @@
     "expected_final_action": "ESCALATE",
     "required_tools": [],
     "allowed_tools": [],
-    "notes": "Future ambiguity case."
+    "notes": "UNCLEAR ambiguous-reply case. Deterministic FR-1.5 policy requires escalation with zero tool calls and no fabricated risk or proposal."
   }
 ]

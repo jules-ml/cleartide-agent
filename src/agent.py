@@ -14,6 +14,7 @@ from src.audit import (
 
 from src.policy import (
     check_sensitive_language,
+    check_unclear_intent,
     escalate,
     load_policy,
     validate_action,
@@ -1165,6 +1166,13 @@ def route_after_classification(
     ):
 
         return "amount_dispute"
+
+    if (
+        primary_intent
+        == Intent.UNCLEAR
+    ):
+
+        return "unclear"
 
     return "unsupported_intent"
 
@@ -3623,6 +3631,32 @@ def hostile_policy_node(
     }
 
 # ============================================================
+# UNCLEAR POLICY ESCALATION
+# ============================================================
+
+def unclear_policy_node(
+    state: AgentState,
+) -> dict:
+    """Apply deterministic FR-1.5 handling with zero tool calls."""
+
+    validation = check_unclear_intent(
+        state["intent"].primary_intent
+    )
+
+    if validation is None:
+        validation = escalate(
+            "FR-1.5",
+            (
+                "UNCLEAR policy route was reached without an "
+                "UNCLEAR primary intent; failing closed for human review."
+            ),
+        )
+
+    return {
+        "validation": validation,
+    }
+
+# ============================================================
 # UNSUPPORTED INTENT
 # ============================================================
 
@@ -3790,6 +3824,11 @@ def build_graph():
     )
 
     builder.add_node(
+        "unclear_policy",
+        unclear_policy_node,
+    )
+
+    builder.add_node(
         "finalize_policy_escalation",
         finalize_policy_escalation_node,
     )
@@ -3851,6 +3890,9 @@ def build_graph():
             "amount_dispute":
                 "gather_amount_dispute_evidence",
 
+            "unclear":
+                "unclear_policy",
+
             "unsupported_intent":
                 "unsupported_intent",
         },
@@ -3858,6 +3900,11 @@ def build_graph():
 
     builder.add_edge(
         "hostile_policy",
+        "finalize_policy_escalation",
+    )
+
+    builder.add_edge(
+        "unclear_policy",
         "finalize_policy_escalation",
     )
 

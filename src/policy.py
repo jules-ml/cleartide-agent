@@ -161,6 +161,19 @@ def determine_disputed_amount(
     return round(disputed_amount, 2)
 
 
+def check_unclear_intent(
+    primary_intent: Intent,
+) -> Optional[PolicyValidationResult]:
+    """Deterministically enforce FR-1.5: UNCLEAR always escalates."""
+
+    if primary_intent == Intent.UNCLEAR:
+        return escalate(
+            "FR-1.5",
+            "UNCLEAR intent cannot be acted on autonomously.",
+        )
+
+    return None
+
 def check_sensitive_language(
     reply_text: str,
     policy: Optional[dict] = None,
@@ -268,11 +281,12 @@ def validate_action(
     # FR-1.5 — UNCLEAR always escalates
     # --------------------------------------------------------
 
-    if primary_intent == Intent.UNCLEAR:
-        return escalate(
-            "FR-1.5",
-            "UNCLEAR intent cannot be acted on autonomously.",
-        )
+    unclear_result = check_unclear_intent(
+        primary_intent
+    )
+
+    if unclear_result is not None:
+        return unclear_result
 
     # --------------------------------------------------------
     # PR-5.3 — legal / sensitive language
