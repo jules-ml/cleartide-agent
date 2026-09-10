@@ -13,6 +13,8 @@ from src.audit import (
 )
 
 from src.policy import (
+    check_sensitive_language,
+    escalate,
     load_policy,
     validate_action,
 )
@@ -1121,6 +1123,13 @@ def route_after_classification(
             "intent"
         ].primary_intent
     )
+
+    if (
+        primary_intent
+        == Intent.HOSTILE_OR_ADVERSARIAL
+    ):
+
+        return "hostile_or_adversarial"
 
     if (
         primary_intent
@@ -3587,6 +3596,33 @@ def forced_escalation_node(
 
 
 # ============================================================
+# HOSTILE / SENSITIVE POLICY ESCALATION
+# ============================================================
+
+def hostile_policy_node(
+    state: AgentState,
+) -> dict:
+    """Apply deterministic PR-5.3 handling with zero tool calls."""
+
+    validation = check_sensitive_language(
+        state["reply_text"]
+    )
+
+    if validation is None:
+        validation = escalate(
+            "PR-5.3",
+            (
+                "HOSTILE_OR_ADVERSARIAL intent was classified, "
+                "but no configured sensitive-language term matched; "
+                "failing closed for human review."
+            ),
+        )
+
+    return {
+        "validation": validation,
+    }
+
+# ============================================================
 # UNSUPPORTED INTENT
 # ============================================================
 
@@ -3749,6 +3785,11 @@ def build_graph():
     )
 
     builder.add_node(
+        "hostile_policy",
+        hostile_policy_node,
+    )
+
+    builder.add_node(
         "finalize_policy_escalation",
         finalize_policy_escalation_node,
     )
@@ -3792,6 +3833,9 @@ def build_graph():
         route_after_classification,
 
         {
+            "hostile_or_adversarial":
+                "hostile_policy",
+
             "delivery_dispute":
                 "gather_delivery_evidence",
 
@@ -3810,6 +3854,11 @@ def build_graph():
             "unsupported_intent":
                 "unsupported_intent",
         },
+    )
+
+    builder.add_edge(
+        "hostile_policy",
+        "finalize_policy_escalation",
     )
 
     # ========================================================

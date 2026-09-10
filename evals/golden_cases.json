@@ -228,7 +228,7 @@
   },
   {
     "case_id": "GOLD-011",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
@@ -239,11 +239,11 @@
     "expected_final_action": "ESCALATE",
     "required_tools": [],
     "allowed_tools": [],
-    "notes": "Mandatory sensitive/legal escalation case."
+    "notes": "HOSTILE_OR_ADVERSARIAL legal-language case. Attorney language triggers deterministic PR-5.3 mandatory escalation with zero tool calls and no fabricated risk or proposal."
   },
   {
     "case_id": "GOLD-012",
-    "active": false,
+    "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
     "account_id": 1001,
@@ -254,7 +254,7 @@
     "expected_final_action": "ESCALATE",
     "required_tools": [],
     "allowed_tools": [],
-    "notes": "Mandatory hostile/legal escalation case."
+    "notes": "HOSTILE_OR_ADVERSARIAL legal-language case. Sue-you language triggers deterministic PR-5.3 mandatory escalation with zero tool calls and no fabricated risk or proposal."
   },
   {
     "case_id": "GOLD-013",

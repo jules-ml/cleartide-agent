@@ -161,6 +161,32 @@ def determine_disputed_amount(
     return round(disputed_amount, 2)
 
 
+def check_sensitive_language(
+    reply_text: str,
+    policy: Optional[dict] = None,
+) -> Optional[PolicyValidationResult]:
+    """Deterministically enforce PR-5.3 sensitive-language escalation."""
+
+    if policy is None:
+        policy = load_policy()
+
+    sensitive_terms = policy["escalation"]["legal_or_sensitive_terms"]
+    normalized_reply = reply_text.lower()
+
+    matched_terms = [
+        term for term in sensitive_terms
+        if term.lower() in normalized_reply
+    ]
+
+    if matched_terms:
+        return escalate(
+            "PR-5.3",
+            "Reply contains mandatory-escalation language: "
+            + ", ".join(matched_terms),
+        )
+
+    return None
+
 # ============================================================
 # MAIN VALIDATOR
 # ============================================================
@@ -252,26 +278,13 @@ def validate_action(
     # PR-5.3 — legal / sensitive language
     # --------------------------------------------------------
 
-    sensitive_terms = policy["escalation"][
-        "legal_or_sensitive_terms"
-    ]
+    sensitive_language_result = check_sensitive_language(
+        reply_text,
+        policy=policy,
+    )
 
-    normalized_reply = reply_text.lower()
-
-    matched_terms = [
-        term
-        for term in sensitive_terms
-        if term.lower() in normalized_reply
-    ]
-
-    if matched_terms:
-        return escalate(
-            "PR-5.3",
-            (
-                "Reply contains mandatory-escalation language: "
-                + ", ".join(matched_terms)
-            ),
-        )
+    if sensitive_language_result is not None:
+        return sensitive_language_result
 
     # --------------------------------------------------------
     # PR-5.4 — disputed amount escalation threshold
