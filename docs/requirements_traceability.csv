@@ -15,7 +15,7 @@ FR-2.8,Evidence,Record every tool call and result with an identifier,src/tools.p
 FR-3.1,Risk,Obtain risk score through tool before autonomous action,src/tools.py; src/agent.py,tests/test_evaluation.py; tests/test_agent_step12.py; tests/test_agent_step14.py,PARTIAL,"Trusted risk retrieval is implemented in delivery, already-paid, payment-plan, promise-to-pay, and amount-dispute slices; remaining intent branches are open."
 FR-3.2,Risk,LLM must not generate substitute risk score,src/agent.py,tests/test_evaluation.py,IMPLEMENTED,Trusted risk injected from tool result
 FR-3.3,Risk,Policy decisions use risk band rather than raw score,src/policy.py; config/policy.yaml,tests/test_policy.py,PARTIAL,Payment-plan policy uses risk band; broader rules remain
-FR-3.4,Risk,Missing or stale risk defaults to highest risk band,config/policy.yaml; src/policy.py,Future regression test,PARTIAL,Policy setting exists; stale-time enforcement still open
+FR-3.4,Risk,Missing or stale risk defaults to highest risk band,config/policy.yaml; src/policy.py; src/agent.py,tests/test_agent_step17.py,IMPLEMENTED,Centralized resolver preserves fresh risk; missing or stale risk defaults to the configured highest band while tool errors remain FR-2.7 operational escalations
 FR-3.5,Risk,Include top contributing factors in escalation,src/audit.py,tests/test_step9.py,IMPLEMENTED,EscalationPacket includes factors when risk exists
 FR-4.1,Action Selection,Use controlled seven-action vocabulary,src/schemas.py,tests/test_agent_step8.py,IMPLEMENTED,ActionType enum implemented
 FR-4.2,Action Selection,Use schema-validated structured action rather than prose parsing,src/schemas.py; src/agent.py,tests/test_agent_step8.py,IMPLEMENTED,Pydantic ProposedAction used

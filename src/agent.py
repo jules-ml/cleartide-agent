@@ -17,6 +17,7 @@ from src.policy import (
     check_unclear_intent,
     escalate,
     load_policy,
+    resolve_risk_result,
     validate_action,
 )
 
@@ -1429,7 +1430,10 @@ def gather_delivery_evidence_node(
         risk_result[
             "status"
         ]
-        != "SUCCESS"
+        not in {
+            "SUCCESS",
+            "NO_RESULT",
+        }
     ):
 
         update[
@@ -1456,37 +1460,8 @@ def gather_delivery_evidence_node(
     # BUILD TRUSTED RISK OBJECT
     # ========================================================
 
-    risk_data = (
-        risk_result[
-            "data"
-        ]
-    )
-
-    trusted_risk = RiskResult(
-        score=(
-            risk_data[
-                "score"
-            ]
-        ),
-
-        band=(
-            risk_data[
-                "risk_band"
-            ]
-        ),
-
-        model_version=(
-            risk_data[
-                "model_version"
-            ]
-        ),
-
-        contributing_factors=(
-            risk_data.get(
-                "contributing_factors"
-            )
-            or []
-        ),
+    trusted_risk = resolve_risk_result(
+        risk_result
     )
 
     update[
@@ -1767,7 +1742,10 @@ def gather_already_paid_evidence_node(
         risk_result[
             "status"
         ]
-        != "SUCCESS"
+        not in {
+            "SUCCESS",
+            "NO_RESULT",
+        }
     ):
 
         update[
@@ -1794,37 +1772,8 @@ def gather_already_paid_evidence_node(
     # BUILD TRUSTED RISK OBJECT
     # ========================================================
 
-    risk_data = (
-        risk_result[
-            "data"
-        ]
-    )
-
-    trusted_risk = RiskResult(
-        score=(
-            risk_data[
-                "score"
-            ]
-        ),
-
-        band=(
-            risk_data[
-                "risk_band"
-            ]
-        ),
-
-        model_version=(
-            risk_data[
-                "model_version"
-            ]
-        ),
-
-        contributing_factors=(
-            risk_data.get(
-                "contributing_factors"
-            )
-            or []
-        ),
+    trusted_risk = resolve_risk_result(
+        risk_result
     )
 
     update[
@@ -2183,7 +2132,10 @@ def gather_payment_plan_evidence_node(
         risk_result[
             "status"
         ]
-        != "SUCCESS"
+        not in {
+            "SUCCESS",
+            "NO_RESULT",
+        }
     ):
 
         update[
@@ -2209,37 +2161,8 @@ def gather_payment_plan_evidence_node(
     # BUILD TRUSTED RISK OBJECT
     # ========================================================
 
-    risk_data = (
-        risk_result[
-            "data"
-        ]
-    )
-
-    trusted_risk = RiskResult(
-        score=(
-            risk_data[
-                "score"
-            ]
-        ),
-
-        band=(
-            risk_data[
-                "risk_band"
-            ]
-        ),
-
-        model_version=(
-            risk_data[
-                "model_version"
-            ]
-        ),
-
-        contributing_factors=(
-            risk_data.get(
-                "contributing_factors"
-            )
-            or []
-        ),
+    trusted_risk = resolve_risk_result(
+        risk_result
     )
 
     update[
@@ -2520,7 +2443,10 @@ def gather_promise_to_pay_evidence_node(
         risk_result[
             "status"
         ]
-        != "SUCCESS"
+        not in {
+            "SUCCESS",
+            "NO_RESULT",
+        }
     ):
 
         update[
@@ -2546,37 +2472,8 @@ def gather_promise_to_pay_evidence_node(
     # BUILD TRUSTED RISK OBJECT
     # ========================================================
 
-    risk_data = (
-        risk_result[
-            "data"
-        ]
-    )
-
-    trusted_risk = RiskResult(
-        score=(
-            risk_data[
-                "score"
-            ]
-        ),
-
-        band=(
-            risk_data[
-                "risk_band"
-            ]
-        ),
-
-        model_version=(
-            risk_data[
-                "model_version"
-            ]
-        ),
-
-        contributing_factors=(
-            risk_data.get(
-                "contributing_factors"
-            )
-            or []
-        ),
+    trusted_risk = resolve_risk_result(
+        risk_result
     )
 
     update[
@@ -2858,7 +2755,10 @@ def gather_amount_dispute_evidence_node(
         risk_result[
             "status"
         ]
-        != "SUCCESS"
+        not in {
+            "SUCCESS",
+            "NO_RESULT",
+        }
     ):
 
         update[
@@ -2884,37 +2784,8 @@ def gather_amount_dispute_evidence_node(
     # BUILD TRUSTED RISK OBJECT
     # ========================================================
 
-    risk_data = (
-        risk_result[
-            "data"
-        ]
-    )
-
-    trusted_risk = RiskResult(
-        score=(
-            risk_data[
-                "score"
-            ]
-        ),
-
-        band=(
-            risk_data[
-                "risk_band"
-            ]
-        ),
-
-        model_version=(
-            risk_data[
-                "model_version"
-            ]
-        ),
-
-        contributing_factors=(
-            risk_data.get(
-                "contributing_factors"
-            )
-            or []
-        ),
+    trusted_risk = resolve_risk_result(
+        risk_result
     )
 
     update[

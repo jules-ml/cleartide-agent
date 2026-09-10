@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path
 import re
 from typing import Optional
@@ -11,6 +12,7 @@ from src.schemas import (
     PolicyValidationResult,
     ProposedAction,
     RiskBand,
+    RiskResult,
     ValidatorOutcome,
 )
 
@@ -160,6 +162,107 @@ def determine_disputed_amount(
 
     return round(disputed_amount, 2)
 
+
+def resolve_risk_result(
+    risk_tool_result: dict,
+    *,
+    now_utc: Optional[datetime] = None,
+) -> RiskResult:
+    """Resolve a risk tool response under deterministic FR-3.4 policy."""
+
+    policy = load_policy()
+    risk_policy = policy["risk"]
+
+    fallback_enabled = bool(
+        policy["hard_constraints"][
+            "missing_or_stale_risk_requires_highest_band"
+        ]
+    )
+
+    fallback_band_name = str(
+        risk_policy["unavailable_score_default_band"]
+    )
+    fallback_band = RiskBand(fallback_band_name)
+
+    fallback_score = float(
+        risk_policy["bands"][fallback_band_name]["minimum"]
+    )
+
+    def fallback(reason: str) -> RiskResult:
+        if not fallback_enabled:
+            raise ValueError(
+                "FR-3.4 fallback is disabled by policy."
+            )
+
+        return RiskResult(
+            score=fallback_score,
+            band=fallback_band,
+            model_version="POLICY_FALLBACK_FR_3_4",
+            contributing_factors=[reason],
+        )
+
+    status = risk_tool_result.get("status")
+
+    if status == "NO_RESULT":
+        return fallback(
+            "FR-3.4: risk score unavailable; highest configured risk band applied."
+        )
+
+    if status != "SUCCESS":
+        raise ValueError(
+            f"Unexpected risk-tool status for FR-3.4 resolver: {status}"
+        )
+
+    risk_data = risk_tool_result.get("data") or {}
+
+    if not risk_data.get("risk_score_available", True):
+        return fallback(
+            "FR-3.4: risk score unavailable; highest configured risk band applied."
+        )
+
+    scored_at_text = risk_data.get("scored_at")
+
+    if not scored_at_text:
+        return fallback(
+            "FR-3.4: risk score timestamp missing; highest configured risk band applied."
+        )
+
+    try:
+        scored_at = datetime.strptime(
+            scored_at_text,
+            "%Y-%m-%d %H:%M:%S",
+        ).replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return fallback(
+            "FR-3.4: risk score timestamp invalid; highest configured risk band applied."
+        )
+
+    if now_utc is None:
+        now_utc = datetime.now(timezone.utc)
+    elif now_utc.tzinfo is None:
+        now_utc = now_utc.replace(tzinfo=timezone.utc)
+    else:
+        now_utc = now_utc.astimezone(timezone.utc)
+
+    staleness_days = int(
+        risk_policy["score_staleness_days"]
+    )
+
+    age_seconds = (now_utc - scored_at).total_seconds()
+
+    if age_seconds > staleness_days * 86400:
+        return fallback(
+            "FR-3.4: risk score stale; highest configured risk band applied."
+        )
+
+    return RiskResult(
+        score=float(risk_data["score"]),
+        band=RiskBand(risk_data["risk_band"]),
+        model_version=str(risk_data["model_version"]),
+        contributing_factors=(
+            risk_data.get("contributing_factors") or []
+        ),
+    )
 
 def check_unclear_intent(
     primary_intent: Intent,
