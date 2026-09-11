@@ -543,6 +543,14 @@ def finalize_decision(
         else None
     )
 
+    violated_fields = (
+        json.dumps(
+            validation.violated_fields
+        )
+        if validation
+        else None
+    )
+
     policy_version = (
         proposal.policy_version
         if proposal
@@ -609,6 +617,7 @@ def finalize_decision(
             rationale = ?,
             validator_outcome = ?,
             violated_constraint = ?,
+            violated_fields = ?,
             policy_version = ?,
             model_version = ?,
             cost = ?,
@@ -688,6 +697,8 @@ def finalize_decision(
             ),
 
             violated_constraints,
+
+            violated_fields,
 
             policy_version,
 

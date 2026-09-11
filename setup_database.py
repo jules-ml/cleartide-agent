@@ -349,6 +349,8 @@ def setup_database():
 
             violated_constraint TEXT,
 
+            violated_fields TEXT,
+
             policy_version TEXT,
 
             model_version TEXT,
@@ -375,6 +377,19 @@ def setup_database():
         )
         """
     )
+
+    agent_action_columns = {
+        row[1]
+        for row in cursor.execute(
+            "PRAGMA table_info(agent_actions)"
+        ).fetchall()
+    }
+
+    if "violated_fields" not in agent_action_columns:
+        cursor.execute(
+            "ALTER TABLE agent_actions "
+            "ADD COLUMN violated_fields TEXT"
+        )
 
     # ========================================================
     # TOOL CALLS

@@ -1,3 +1,5 @@
+import json
+
 import src.agent as agent
 
 from src.database import get_connection
@@ -156,6 +158,18 @@ def test_firm_tone_high_value_account_escalates_in_graph(monkeypatch):
         assert result["validation"].outcome == ValidatorOutcome.ESCALATE
         assert "PR-5.5" in result["validation"].violated_constraints
         assert result["final_status"] == "ESCALATE"
+
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT violated_fields FROM agent_actions WHERE decision_id = ?",
+            (result["decision_id"],),
+        ).fetchone()
+        conn.close()
+
+        assert row is not None
+        assert json.loads(row["violated_fields"]) == [
+            "account_lifetime_value",
+        ]
 
     finally:
         cleanup_step23_fixture(result)

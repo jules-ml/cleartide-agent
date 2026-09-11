@@ -62,6 +62,7 @@ def approved(explanation: str) -> PolicyValidationResult:
     return PolicyValidationResult(
         outcome=ValidatorOutcome.APPROVED,
         violated_constraints=[],
+        violated_fields=[],
         explanation=explanation,
     )
 
@@ -69,6 +70,7 @@ def approved(explanation: str) -> PolicyValidationResult:
 def rejected(
     constraint_id: str,
     explanation: str,
+    violated_fields: Optional[list[str]] = None,
 ) -> PolicyValidationResult:
     """
     FR-5.3:
@@ -81,6 +83,7 @@ def rejected(
     return PolicyValidationResult(
         outcome=ValidatorOutcome.REJECTED,
         violated_constraints=[constraint_id],
+        violated_fields=violated_fields or [],
         explanation=explanation,
     )
 
@@ -88,10 +91,12 @@ def rejected(
 def escalate(
     constraint_id: str,
     explanation: str,
+    violated_fields: Optional[list[str]] = None,
 ) -> PolicyValidationResult:
     return PolicyValidationResult(
         outcome=ValidatorOutcome.ESCALATE,
         violated_constraints=[constraint_id],
+        violated_fields=violated_fields or [],
         explanation=explanation,
     )
 
@@ -294,6 +299,7 @@ def check_unclear_intent(
         return escalate(
             "FR-1.5",
             "UNCLEAR intent cannot be acted on autonomously.",
+            violated_fields=["primary_intent"],
         )
 
     return None
@@ -320,6 +326,7 @@ def check_sensitive_language(
             "PR-5.3",
             "Reply contains mandatory-escalation language: "
             + ", ".join(matched_terms),
+            violated_fields=["reply_text"],
         )
 
     return None
@@ -434,6 +441,7 @@ def validate_action(
                 f"{proposal.policy_version}, but active policy "
                 f"version is {active_policy_version}."
             ),
+            violated_fields=["policy_version"],
         )
 
     # --------------------------------------------------------
@@ -448,6 +456,7 @@ def validate_action(
         return escalate(
             "GV-5",
             "Autonomous action is disabled by the global policy switch.",
+            violated_fields=["autonomous_action_enabled"],
         )
 
     # --------------------------------------------------------
@@ -466,6 +475,7 @@ def validate_action(
                 f"the required threshold of "
                 f"{confidence_threshold:.2f}."
             ),
+            violated_fields=["intent_confidence"],
         )
 
     # --------------------------------------------------------
@@ -501,6 +511,7 @@ def validate_action(
             return escalate(
                 "PR-5.4",
                 "Trusted ledger amount is unavailable for the disputed invoice.",
+                violated_fields=["ledger_amount"],
             )
 
         disputed_amount = determine_disputed_amount(
@@ -515,6 +526,7 @@ def validate_action(
                     "The disputed amount could not be determined "
                     "unambiguously from the reply and trusted ledger."
                 ),
+                violated_fields=["reply_text", "ledger_amount"],
             )
 
         disputed_amount_threshold = float(
@@ -529,6 +541,7 @@ def validate_action(
                     f"the ${disputed_amount_threshold:,.2f} "
                     "mandatory-escalation threshold."
                 ),
+                violated_fields=["disputed_amount"],
             )
 
     # --------------------------------------------------------
@@ -542,6 +555,7 @@ def validate_action(
                 "Customer has opted out of the proposed communication "
                 "channel; human review is required."
             ),
+            violated_fields=["channel_opted_out"],
         )
 
     # --------------------------------------------------------
@@ -557,6 +571,7 @@ def validate_action(
             return rejected(
                 "PR-4.1",
                 "SMS cannot be used without recorded affirmative consent.",
+                violated_fields=["sms_consent"],
             )
 
     # --------------------------------------------------------
@@ -572,12 +587,14 @@ def validate_action(
             return escalate(
                 "PR-2.4",
                 "Consumer SMS requires an explicit proposed send time for quiet-hours evaluation.",
+                violated_fields=["proposed_send_time"],
             )
 
         if proposed_send_time.tzinfo is None:
             return escalate(
                 "PR-2.4",
                 "Consumer SMS proposed send time must be timezone-aware.",
+                violated_fields=["proposed_send_time"],
             )
 
         if is_within_consumer_quiet_hours(
@@ -587,6 +604,7 @@ def validate_action(
             return rejected(
                 "PR-2.1",
                 "Consumer SMS is not permitted during configured quiet hours.",
+                violated_fields=["proposed_send_time"],
             )
 
     # --------------------------------------------------------
@@ -614,6 +632,7 @@ def validate_action(
                     "Rolling seven-day outbound contact limit "
                     f"of {max_contacts} has been reached."
                 ),
+                violated_fields=["recent_outbound_contact_count"],
             )
 
     # --------------------------------------------------------
@@ -631,20 +650,37 @@ def validate_action(
             high_value_policy["tenure_months_threshold"]
         )
 
-        if (
-            account_lifetime_value is None
-            or customer_since is None
-            or policy_evaluation_time is None
-        ):
+        missing_context_fields = [
+            field_name
+            for field_name, field_value in (
+                ("account_lifetime_value", account_lifetime_value),
+                ("customer_since", customer_since),
+                ("policy_evaluation_time", policy_evaluation_time),
+            )
+            if field_value is None
+        ]
+
+        if missing_context_fields:
             return escalate(
                 "PR-5.5",
                 "Firm-tone proposal requires complete account value and tenure context.",
+                violated_fields=missing_context_fields,
             )
 
         if policy_evaluation_time.tzinfo is None:
             return escalate(
                 "PR-5.5",
                 "Firm-tone tenure evaluation requires a timezone-aware evaluation time.",
+                violated_fields=["policy_evaluation_time"],
+            )
+
+        try:
+            lifetime_value = float(account_lifetime_value)
+        except (TypeError, ValueError):
+            return escalate(
+                "PR-5.5",
+                "Account lifetime value is invalid and requires human review.",
+                violated_fields=["account_lifetime_value"],
             )
 
         try:
@@ -656,18 +692,25 @@ def validate_action(
             return escalate(
                 "PR-5.5",
                 "Customer tenure data is invalid and requires human review.",
+                violated_fields=["customer_since"],
             )
 
-        if (
-            float(account_lifetime_value) >= lifetime_value_threshold
-            or tenure_months >= tenure_months_threshold
-        ):
+        threshold_fields = []
+
+        if lifetime_value >= lifetime_value_threshold:
+            threshold_fields.append("account_lifetime_value")
+
+        if tenure_months >= tenure_months_threshold:
+            threshold_fields.append("customer_since")
+
+        if threshold_fields:
             return escalate(
                 "PR-5.5",
                 (
                     "Firm-tone communication for a high-value or "
                     "high-tenure account requires human review."
                 ),
+                violated_fields=threshold_fields,
             )
 
     # --------------------------------------------------------
@@ -680,12 +723,14 @@ def validate_action(
             return rejected(
                 "PR-5.2",
                 "Payment-plan proposal is missing duration.",
+                violated_fields=["payment_plan_duration_days"],
             )
 
         if proposal.payment_plan_down_payment_pct is None:
             return rejected(
                 "PR-5.2",
                 "Payment-plan proposal is missing down-payment percentage.",
+                violated_fields=["payment_plan_down_payment_pct"],
             )
 
         risk_band_name = proposal.risk_band.value
@@ -701,6 +746,7 @@ def validate_action(
                     f"No payment-plan policy exists for risk band "
                     f"{risk_band_name}."
                 ),
+                violated_fields=["risk_band"],
             )
 
         autonomous_allowed = bool(
@@ -714,6 +760,7 @@ def validate_action(
                     f"Autonomous payment plans are not permitted for "
                     f"{risk_band_name} risk accounts."
                 ),
+                violated_fields=["risk_band"],
             )
 
         maximum_duration = int(
@@ -733,6 +780,7 @@ def validate_action(
                     f"the {maximum_duration}-day maximum for "
                     f"{risk_band_name} risk."
                 ),
+                violated_fields=["payment_plan_duration_days"],
             )
 
         if (
@@ -748,6 +796,7 @@ def validate_action(
                     f"{minimum_down_payment:.0%} minimum for "
                     f"{risk_band_name} risk."
                 ),
+                violated_fields=["payment_plan_down_payment_pct"],
             )
 
     # --------------------------------------------------------

@@ -68,6 +68,7 @@ def test_payment_plan_too_long_is_rejected():
 
     assert result.outcome == ValidatorOutcome.REJECTED
     assert "PR-5.2" in result.violated_constraints
+    assert result.violated_fields == ["payment_plan_duration_days"]
 
 
 # ============================================================
@@ -87,6 +88,7 @@ def test_low_confidence_escalates():
 
     assert result.outcome == ValidatorOutcome.ESCALATE
     assert "FR-1.3" in result.violated_constraints
+    assert result.violated_fields == ["intent_confidence"]
 
 
 # ============================================================
@@ -106,6 +108,7 @@ def test_unclear_intent_escalates():
 
     assert result.outcome == ValidatorOutcome.ESCALATE
     assert "FR-1.5" in result.violated_constraints
+    assert result.violated_fields == ["primary_intent"]
 
 
 # ============================================================
@@ -134,6 +137,7 @@ def test_sms_without_consent_is_rejected():
 
     assert result.outcome == ValidatorOutcome.REJECTED
     assert "PR-4.1" in result.violated_constraints
+    assert result.violated_fields == ["sms_consent"]
 
 
 # ============================================================
@@ -161,6 +165,7 @@ def test_attorney_reference_escalates():
 
     assert result.outcome == ValidatorOutcome.ESCALATE
     assert "PR-5.3" in result.violated_constraints
+    assert result.violated_fields == ["reply_text"]
 
 
 # ============================================================
@@ -205,6 +210,7 @@ def test_consumer_sms_at_quiet_hours_start_is_rejected():
 
     assert result.outcome == ValidatorOutcome.REJECTED
     assert "PR-2.1" in result.violated_constraints
+    assert result.violated_fields == ["proposed_send_time"]
 
 
 def test_consumer_sms_at_quiet_hours_end_is_approved():
@@ -240,6 +246,7 @@ def test_consumer_sms_without_send_time_escalates():
 
     assert result.outcome == ValidatorOutcome.ESCALATE
     assert "PR-2.4" in result.violated_constraints
+    assert result.violated_fields == ["proposed_send_time"]
 
 
 def test_consumer_email_is_exempt_from_quiet_hours():
@@ -321,6 +328,7 @@ def test_fifth_contact_with_four_prior_contacts_is_rejected():
 
     assert result.outcome == ValidatorOutcome.REJECTED
     assert "PR-2.3" in result.violated_constraints
+    assert result.violated_fields == ["recent_outbound_contact_count"]
 
 # ============================================================
 # PR-5.5
@@ -361,6 +369,7 @@ def test_firm_tone_high_value_account_escalates():
 
     assert result.outcome == ValidatorOutcome.ESCALATE
     assert "PR-5.5" in result.violated_constraints
+    assert result.violated_fields == ["account_lifetime_value"]
 
 
 def test_firm_tone_high_tenure_account_escalates():
@@ -383,6 +392,7 @@ def test_firm_tone_high_tenure_account_escalates():
 
     assert result.outcome == ValidatorOutcome.ESCALATE
     assert "PR-5.5" in result.violated_constraints
+    assert result.violated_fields == ["customer_since"]
 
 
 def test_standard_tone_high_value_account_is_not_blocked_by_pr55():

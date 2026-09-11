@@ -26,7 +26,7 @@ FR-4.6,Action Selection,Escalate when no permissible action exists,src/agent.py;
 FR-5.1,Policy Validation,Every proposal passes deterministic validator,src/agent.py; src/policy.py,tests/test_policy.py,IMPLEMENTED,Validator always precedes autonomous final action
 FR-5.2,Policy Validation,Hard constraints live in application code without LLM dependency,src/policy.py,tests/test_policy.py,IMPLEMENTED,Validator independent of reasoning model
 FR-5.3,Policy Validation,Hard violation rejects and escalates,src/policy.py; src/agent.py,tests/test_policy.py,IMPLEMENTED,Rejected or escalated proposals cannot execute
-FR-5.4,Policy Validation,Log violated constraint identifier and field,src/policy.py; src/audit.py,tests/test_step9.py,PARTIAL,Constraint IDs logged; field-level detail can be expanded
+FR-5.4,Policy Validation,Log violated constraint identifier and field,src/schemas.py; src/policy.py; src/audit.py; setup_database.py,tests/test_policy.py; tests/test_agent_step23.py,IMPLEMENTED,Validator records both violated constraint identifiers and triggering fields; structured field metadata is persisted in the decision audit record
 FR-5.5,Policy Validation,Permit at most one revision after rejection,src/agent.py; config/policy.yaml,tests/test_step9.py,IMPLEMENTED,Revision counter and route tested
 FR-5.6,Policy Validation,Validator independently unit-testable without agent,src/policy.py,tests/test_policy.py,IMPLEMENTED,Direct validator tests pass
 FR-6.1,Escalation,Escalation packet contains reply intent tools risk proposed action rejection and history,src/schemas.py; src/audit.py,tests/test_step9.py,IMPLEMENTED,Structured packet persisted as JSON

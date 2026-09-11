@@ -257,6 +257,10 @@ class PolicyValidationResult(BaseModel):
         default_factory=list
     )
 
+    violated_fields: list[str] = Field(
+        default_factory=list
+    )
+
     explanation: str
 
 
