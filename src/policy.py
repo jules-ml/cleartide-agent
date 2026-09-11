@@ -10,6 +10,7 @@ from src.schemas import (
     Channel,
     DebtClassification,
     Intent,
+    MessageTone,
     PolicyValidationResult,
     ProposedAction,
     RiskBand,
@@ -357,6 +358,28 @@ def is_within_consumer_quiet_hours(
         or local_time < end
     )
 
+def calculate_tenure_months(
+    customer_since: str,
+    *,
+    as_of: datetime,
+) -> int:
+    """PR-5.5: calculate completed customer-tenure months."""
+
+    start = datetime.fromisoformat(customer_since).date()
+    current = as_of.date()
+
+    months = (
+        (current.year - start.year) * 12
+        + current.month
+        - start.month
+    )
+
+    if current.day < start.day:
+        months -= 1
+
+    return max(months, 0)
+
+
 # ============================================================
 # MAIN VALIDATOR
 # ============================================================
@@ -373,6 +396,9 @@ def validate_action(
     channel_opted_out: bool = False,
     proposed_send_time: Optional[datetime] = None,
     recent_outbound_contact_count: Optional[int] = None,
+    account_lifetime_value: Optional[float] = None,
+    customer_since: Optional[str] = None,
+    policy_evaluation_time: Optional[datetime] = None,
 ) -> PolicyValidationResult:
     """
     Deterministically validate an agent-proposed action.
@@ -587,6 +613,60 @@ def validate_action(
                 (
                     "Rolling seven-day outbound contact limit "
                     f"of {max_contacts} has been reached."
+                ),
+            )
+
+    # --------------------------------------------------------
+    # PR-5.5 — firm tone for high-value/high-tenure accounts
+    # --------------------------------------------------------
+
+    if proposal.message_tone == MessageTone.FIRM:
+        high_value_policy = policy["escalation"]["high_value_account"]
+
+        lifetime_value_threshold = float(
+            high_value_policy["lifetime_value_threshold"]
+        )
+
+        tenure_months_threshold = int(
+            high_value_policy["tenure_months_threshold"]
+        )
+
+        if (
+            account_lifetime_value is None
+            or customer_since is None
+            or policy_evaluation_time is None
+        ):
+            return escalate(
+                "PR-5.5",
+                "Firm-tone proposal requires complete account value and tenure context.",
+            )
+
+        if policy_evaluation_time.tzinfo is None:
+            return escalate(
+                "PR-5.5",
+                "Firm-tone tenure evaluation requires a timezone-aware evaluation time.",
+            )
+
+        try:
+            tenure_months = calculate_tenure_months(
+                customer_since,
+                as_of=policy_evaluation_time,
+            )
+        except ValueError:
+            return escalate(
+                "PR-5.5",
+                "Customer tenure data is invalid and requires human review.",
+            )
+
+        if (
+            float(account_lifetime_value) >= lifetime_value_threshold
+            or tenure_months >= tenure_months_threshold
+        ):
+            return escalate(
+                "PR-5.5",
+                (
+                    "Firm-tone communication for a high-value or "
+                    "high-tenure account requires human review."
                 ),
             )
 

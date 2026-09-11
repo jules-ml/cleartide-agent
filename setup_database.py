@@ -61,10 +61,33 @@ def setup_database():
 
             email_allowed INTEGER DEFAULT 1,
 
+            lifetime_value REAL NOT NULL DEFAULT 0.0,
+
+            customer_since TEXT,
+
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
+
+    account_columns = {
+        row[1]
+        for row in cursor.execute(
+            "PRAGMA table_info(accounts)"
+        ).fetchall()
+    }
+
+    if "lifetime_value" not in account_columns:
+        cursor.execute(
+            "ALTER TABLE accounts "
+            "ADD COLUMN lifetime_value REAL NOT NULL DEFAULT 0.0"
+        )
+
+    if "customer_since" not in account_columns:
+        cursor.execute(
+            "ALTER TABLE accounts "
+            "ADD COLUMN customer_since TEXT"
+        )
 
     # ========================================================
     # INVOICES

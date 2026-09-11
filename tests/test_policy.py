@@ -6,6 +6,7 @@ from src.schemas import (
     Channel,
     DebtClassification,
     Intent,
+    MessageTone,
     ProposedAction,
     RiskBand,
     ValidatorOutcome,
@@ -320,3 +321,90 @@ def test_fifth_contact_with_four_prior_contacts_is_rejected():
 
     assert result.outcome == ValidatorOutcome.REJECTED
     assert "PR-2.3" in result.violated_constraints
+
+# ============================================================
+# PR-5.5
+# Firm tone for high-value/high-tenure accounts requires escalation.
+# ============================================================
+
+def make_firm_message():
+    return ProposedAction(
+        action_type=ActionType.SEND_MESSAGE,
+        target_channel=Channel.EMAIL,
+        message_body="Payment is required immediately.",
+        message_tone=MessageTone.FIRM,
+        rationale="Firm collection follow-up.",
+        tool_call_ids=["TC-PR55"],
+        risk_score=0.20,
+        risk_band=RiskBand.LOW,
+        policy_version="0.1-dev",
+    )
+
+
+def test_firm_tone_high_value_account_escalates():
+    result = validate_action(
+        make_firm_message(),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay soon.",
+        account_lifetime_value=50000.00,
+        customer_since="2025-01-01",
+        policy_evaluation_time=datetime(
+            2026,
+            9,
+            11,
+            16,
+            0,
+            tzinfo=timezone.utc,
+        ),
+    )
+
+    assert result.outcome == ValidatorOutcome.ESCALATE
+    assert "PR-5.5" in result.violated_constraints
+
+
+def test_firm_tone_high_tenure_account_escalates():
+    result = validate_action(
+        make_firm_message(),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay soon.",
+        account_lifetime_value=1000.00,
+        customer_since="2023-09-11",
+        policy_evaluation_time=datetime(
+            2026,
+            9,
+            11,
+            16,
+            0,
+            tzinfo=timezone.utc,
+        ),
+    )
+
+    assert result.outcome == ValidatorOutcome.ESCALATE
+    assert "PR-5.5" in result.violated_constraints
+
+
+def test_standard_tone_high_value_account_is_not_blocked_by_pr55():
+    proposal = make_firm_message().model_copy(
+        update={"message_tone": MessageTone.STANDARD}
+    )
+
+    result = validate_action(
+        proposal,
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay soon.",
+        account_lifetime_value=75000.00,
+        customer_since="2020-01-01",
+        policy_evaluation_time=datetime(
+            2026,
+            9,
+            11,
+            16,
+            0,
+            tzinfo=timezone.utc,
+        ),
+    )
+
+    assert "PR-5.5" not in result.violated_constraints

@@ -3604,6 +3604,10 @@ def propose_action_node(
             recommendation.message_body
         ),
 
+        message_tone=(
+            recommendation.message_tone
+        ),
+
         payment_plan_duration_days=(
             payment_plan_duration_days
         ),
@@ -3801,6 +3805,18 @@ def validate_proposal_node(
 
         recent_outbound_contact_count=(
             recent_outbound_contact_count
+        ),
+
+        account_lifetime_value=(
+            account_data.get("lifetime_value")
+        ),
+
+        customer_since=(
+            account_data.get("customer_since")
+        ),
+
+        policy_evaluation_time=(
+            state.get("decision_started_at_utc")
         ),
     )
 

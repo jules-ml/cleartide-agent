@@ -49,6 +49,16 @@ class Channel(str, Enum):
     HUMAN_CALL_FLAG = "HUMAN_CALL_FLAG"
 
 
+class MessageTone(str, Enum):
+    """
+    PR-5.5
+    Controlled vocabulary for customer-facing message tone.
+    """
+
+    STANDARD = "STANDARD"
+    FIRM = "FIRM"
+
+
 class RiskBand(str, Enum):
     """
     FR-3.3
@@ -180,6 +190,8 @@ class AgentActionRecommendation(BaseModel):
 
     message_body: Optional[str] = None
 
+    message_tone: MessageTone = MessageTone.STANDARD
+
     rationale: str
 
 
@@ -196,6 +208,8 @@ class ProposedAction(BaseModel):
     target_channel: Optional[Channel] = None
 
     message_body: Optional[str] = None
+
+    message_tone: MessageTone = MessageTone.STANDARD
 
     payment_plan_duration_days: Optional[int] = Field(
         default=None,
@@ -335,6 +349,8 @@ class FinalAction(BaseModel):
     target_channel: Optional[Channel] = None
 
     message_body: Optional[str] = None
+
+    message_tone: MessageTone = MessageTone.STANDARD
 
     rationale: str
 

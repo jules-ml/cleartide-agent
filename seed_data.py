@@ -20,9 +20,11 @@ def seed_data():
             debt_type,
             account_status,
             sms_consent,
-            email_allowed
+            email_allowed,
+            lifetime_value,
+            customer_since
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             1001,
@@ -32,6 +34,8 @@ def seed_data():
             "active",
             1,
             1,
+            25000.00,
+            "2025-01-01",
         ),
     )
 
@@ -236,9 +240,11 @@ def seed_data():
             debt_type,
             account_status,
             sms_consent,
-            email_allowed
+            email_allowed,
+            lifetime_value,
+            customer_since
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             1002,
@@ -248,6 +254,8 @@ def seed_data():
             "active",
             0,
             1,
+            12000.00,
+            "2025-06-01",
         ),
     )
 
