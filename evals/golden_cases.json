@@ -104,13 +104,15 @@
     "expected_final_action": "ESCALATE",
     "required_tools": [
       "get_payment_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_prior_escalations"
     ],
     "allowed_tools": [
       "get_payment_history",
       "get_risk_score",
       "get_prior_promises",
-      "get_account_history"
+      "get_account_history",
+      "get_prior_escalations"
     ],
     "notes": "Future payment-plan branch. MEDIUM fixture risk currently does not permit autonomous plan approval."
   },
@@ -127,13 +129,15 @@
     "expected_final_action": "ESCALATE",
     "required_tools": [
       "get_payment_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_prior_escalations"
     ],
     "allowed_tools": [
       "get_payment_history",
       "get_risk_score",
       "get_prior_promises",
-      "get_account_history"
+      "get_account_history",
+      "get_prior_escalations"
     ],
     "notes": "Future payment-plan branch."
   },
@@ -194,12 +198,14 @@
     "expected_final_action": "FLAG_FOR_HUMAN_CALL",
     "required_tools": [
       "get_prior_promises",
-      "get_risk_score"
+      "get_risk_score",
+      "get_prior_escalations"
     ],
     "allowed_tools": [
       "get_prior_promises",
       "get_risk_score",
-      "get_account_history"
+      "get_account_history",
+      "get_prior_escalations"
     ],
     "notes": "PROMISE_TO_PAY retrieves prior promise memory and trusted risk. The development fixture contains a prior BROKEN promise, so the agent selects human follow-up rather than routine autonomous handling."
   },
@@ -217,12 +223,14 @@
     "required_tools": [
       "get_prior_disputes",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_prior_escalations"
     ],
     "allowed_tools": [
       "get_prior_disputes",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_prior_escalations"
     ],
     "notes": "AMOUNT_DISPUTE retrieves prior dispute memory, trusted ledger evidence, and trusted risk. The customer disputes a $250 difference from the $8,750 ledger amount, below the configured $5,000 PR-5.4 escalation threshold, so the agent logs the dispute and places collections activity on hold."
   },

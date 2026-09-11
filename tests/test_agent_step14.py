@@ -132,6 +132,8 @@ def test_amount_dispute_evidence_node_retrieves_memory_account_and_risk():
 
     assert result["prior_disputes_evidence"]["status"] == "SUCCESS"
     assert result["prior_disputes_evidence"]["tool_name"] == "get_prior_disputes"
+    assert result["prior_escalations_evidence"]["status"] == "SUCCESS"
+    assert result["prior_escalations_evidence"]["tool_name"] == "get_prior_escalations"
 
     assert result["account_evidence"]["status"] == "SUCCESS"
     assert result["account_evidence"]["tool_name"] == "get_account_history"
@@ -142,7 +144,7 @@ def test_amount_dispute_evidence_node_retrieves_memory_account_and_risk():
     assert result["risk"].score == 0.42
     assert result["risk"].band.value == "MEDIUM"
 
-    assert result["tool_call_count"] == 3
+    assert result["tool_call_count"] == 4
 
 
 def test_amount_dispute_runs_end_to_end_through_graph():
@@ -159,6 +161,8 @@ def test_amount_dispute_runs_end_to_end_through_graph():
 
     assert result["prior_disputes_evidence"]["status"] == "SUCCESS"
     assert result["prior_disputes_evidence"]["tool_name"] == "get_prior_disputes"
+    assert result["prior_escalations_evidence"]["status"] == "SUCCESS"
+    assert result["prior_escalations_evidence"]["tool_name"] == "get_prior_escalations"
 
     assert result["account_evidence"]["status"] == "SUCCESS"
     assert result["risk_evidence"]["status"] == "SUCCESS"
@@ -170,7 +174,7 @@ def test_amount_dispute_runs_end_to_end_through_graph():
 
     assert result["final_status"] == "APPROVED"
     assert result["final_action_type"] == ActionType.LOG_DISPUTE_AND_HOLD
-    assert result["tool_call_count"] == 3
+    assert result["tool_call_count"] == 4
 
 
 def test_amount_dispute_over_threshold_escalates_under_pr_5_4():

@@ -44,6 +44,7 @@ from src.tools import (
     get_account_history,
     get_payment_history,
     get_prior_disputes,
+    get_prior_escalations,
     get_prior_promises,
     get_risk_score,
     reconcile_payment_claim,
@@ -544,6 +545,69 @@ def get_development_payment_plan_terms(
     )
 
 
+def get_prior_escalation_memory_context(
+    state: AgentState,
+) -> tuple[list[dict], list[str]]:
+    """FR-7.3: summarize exact prior escalation memory."""
+
+    data = (
+        state.get(
+            "prior_escalations_evidence",
+            {},
+        )
+        .get(
+            "data",
+            {},
+        )
+    )
+
+    escalations = (
+        data.get(
+            "escalations",
+            [],
+        )
+        or []
+    )
+
+    unresolved = [
+        escalation
+        for escalation in escalations
+        if str(
+            escalation.get(
+                "status",
+                "",
+            )
+        ).upper()
+        not in {
+            "RESOLVED",
+            "CLOSED",
+        }
+    ]
+
+    dispositions = [
+        str(
+            escalation.get(
+                "human_disposition"
+            )
+        ).strip()
+        for escalation in escalations
+        if str(
+            escalation.get(
+                "status",
+                "",
+            )
+        ).upper()
+        in {
+            "RESOLVED",
+            "CLOSED",
+        }
+        and escalation.get(
+            "human_disposition"
+        )
+    ]
+
+    return unresolved, dispositions
+
 # ============================================================
 # MOCK PAYMENT-PLAN ACTION RECOMMENDER
 # ============================================================
@@ -651,6 +715,19 @@ def mock_recommend_payment_plan_action(
         * 100
     )
 
+    _, prior_dispositions = (
+        get_prior_escalation_memory_context(
+            state
+        )
+    )
+
+    disposition_context = (
+        " Prior resolved human disposition: "
+        f"{prior_dispositions[0]}."
+        if prior_dispositions
+        else ""
+    )
+
     return AgentActionRecommendation(
         action_type=(
             ActionType.PROPOSE_PAYMENT_PLAN
@@ -676,6 +753,7 @@ def mock_recommend_payment_plan_action(
             f"The current risk band is {risk_band_value}. "
             "The proposal must pass the deterministic policy "
             "validator before any customer-facing execution."
+            f"{disposition_context}"
         ),
     )
 
@@ -2024,6 +2102,84 @@ def gather_payment_plan_evidence_node(
 
     # ========================================================
     # TOOL 3
+    # PRIOR ESCALATION MEMORY
+    # ========================================================
+
+    prior_escalations_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_prior_escalations"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_prior_escalations
+            ),
+        )
+    )
+
+    update[
+        "prior_escalations_evidence"
+    ] = prior_escalations_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        prior_escalations_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_prior_escalations "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 4
     # ACCOUNT CONTEXT
     # ========================================================
 
@@ -2349,6 +2505,84 @@ def gather_promise_to_pay_evidence_node(
 
     # ========================================================
     # TOOL 2
+    # PRIOR ESCALATION MEMORY
+    # ========================================================
+
+    prior_escalations_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_prior_escalations"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_prior_escalations
+            ),
+        )
+    )
+
+    update[
+        "prior_escalations_evidence"
+    ] = prior_escalations_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        prior_escalations_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_prior_escalations "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 3
     # ACCOUNT CONTEXT
     # ========================================================
 
@@ -2675,6 +2909,84 @@ def gather_amount_dispute_evidence_node(
 
     # ========================================================
     # TOOL 2
+    # PRIOR ESCALATION MEMORY
+    # ========================================================
+
+    prior_escalations_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_prior_escalations"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_prior_escalations
+            ),
+        )
+    )
+
+    update[
+        "prior_escalations_evidence"
+    ] = prior_escalations_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        prior_escalations_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_prior_escalations "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 3
     # ACCOUNT CONTEXT
     # ========================================================
 
@@ -3030,6 +3342,12 @@ def propose_action_node(
             ],
 
             state[
+                "prior_escalations_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
                 "account_evidence"
             ][
                 "tool_call_id"
@@ -3079,6 +3397,12 @@ def propose_action_node(
             ],
 
             state[
+                "prior_escalations_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
                 "account_evidence"
             ][
                 "tool_call_id"
@@ -3109,6 +3433,12 @@ def propose_action_node(
         tool_call_ids = [
             state[
                 "prior_disputes_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "prior_escalations_evidence"
             ][
                 "tool_call_id"
             ],

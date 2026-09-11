@@ -200,6 +200,8 @@ def build_escalation_packet(
     "payment_evidence",
     "payment_history_evidence",
     "prior_promises_evidence",
+    "prior_disputes_evidence",
+    "prior_escalations_evidence",
     "account_evidence",
     "risk_evidence",
 ):
