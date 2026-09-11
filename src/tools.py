@@ -729,7 +729,22 @@ def get_prior_escalations(
 
     rows = conn.execute(
         """
-        SELECT *
+        SELECT
+            escalation_id,
+            decision_id,
+            account_id,
+            invoice_id,
+            reply_text,
+            intent,
+            confidence,
+            proposed_action,
+            rejection_reason,
+            risk_score,
+            risk_band,
+            human_disposition,
+            status,
+            created_at,
+            resolved_at
         FROM escalations
         WHERE account_id = ?
         ORDER BY created_at DESC, escalation_id DESC
@@ -747,6 +762,103 @@ def get_prior_escalations(
         data={
             "count": len(escalations),
             "escalations": escalations,
+        },
+        decision_id=decision_id,
+    )
+
+# ============================================================
+# TOOL 9
+# GET PRIOR UNSUPPORTED ALREADY-PAID CLAIMS
+# ============================================================
+
+def get_prior_unsupported_already_paid_claims(
+    account_id: int,
+    decision_id: Optional[int] = None,
+) -> dict:
+    """
+    FR-7.4
+
+    Retrieve prior ALREADY_PAID_CLAIM decisions whose persisted
+    reconciliation evidence did not verify the payment claim.
+    """
+
+    conn = get_connection()
+
+    rows = conn.execute(
+        """
+        SELECT
+            aa.decision_id,
+            aa.invoice_id,
+            aa.created_at,
+            tc.tool_call_id,
+            tc.result_json
+        FROM agent_actions AS aa
+        JOIN tool_calls AS tc
+            ON tc.decision_id = aa.decision_id
+        WHERE aa.account_id = ?
+          AND aa.primary_intent = 'ALREADY_PAID_CLAIM'
+          AND tc.tool_name = 'reconcile_payment_claim'
+          AND tc.status = 'SUCCESS'
+          AND (? IS NULL OR aa.decision_id <> ?)
+        ORDER BY aa.created_at DESC, aa.decision_id DESC, tc.tool_call_id DESC
+        """,
+        (
+            account_id,
+            decision_id,
+            decision_id,
+        ),
+    ).fetchall()
+
+    conn.close()
+
+    unsupported_claims = []
+    seen_decisions = set()
+
+    for row in rows:
+        item = dict(row)
+        prior_decision_id = item["decision_id"]
+
+        if prior_decision_id in seen_decisions:
+            continue
+
+        seen_decisions.add(prior_decision_id)
+
+        reconciliation = json.loads(
+            item["result_json"] or "{}"
+        )
+
+        if (
+            reconciliation.get(
+                "payment_claim_verified"
+            )
+            is False
+        ):
+            unsupported_claims.append(
+                {
+                    "decision_id":
+                        prior_decision_id,
+                    "invoice_id":
+                        item["invoice_id"],
+                    "created_at":
+                        item["created_at"],
+                    "tool_call_id":
+                        item["tool_call_id"],
+                    "reconciliation":
+                        reconciliation,
+                }
+            )
+
+    return _tool_response(
+        tool_name=(
+            "get_prior_unsupported_already_paid_claims"
+        ),
+        arguments={"account_id": account_id},
+        data={
+            "count": len(
+                unsupported_claims
+            ),
+            "unsupported_claims":
+                unsupported_claims,
         },
         decision_id=decision_id,
     )

@@ -19,7 +19,23 @@ from src.schemas import (
 # CURRENT PARTIALLY-PAID FIXTURE
 # ============================================================
 
-def test_already_paid_claim_uses_ledger_evidence():
+def test_already_paid_claim_uses_ledger_evidence(monkeypatch):
+
+    import src.agent as agent
+
+    def empty_unsupported_claim_memory(account_id, decision_id=None):
+        return {
+            "tool_call_id": "TEST-FR-7.4",
+            "tool_name": "get_prior_unsupported_already_paid_claims",
+            "status": "SUCCESS",
+            "data": {"count": 0, "unsupported_claims": []},
+        }
+
+    monkeypatch.setattr(
+        agent,
+        "get_prior_unsupported_already_paid_claims",
+        empty_unsupported_claim_memory,
+    )
 
     result = None
 

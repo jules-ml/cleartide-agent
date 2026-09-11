@@ -57,6 +57,8 @@ class AgentState(TypedDict, total=False):
 
     prior_escalations_evidence: dict
 
+    prior_unsupported_already_paid_claims_evidence: dict
+
     account_evidence: dict
 
     risk_evidence: dict

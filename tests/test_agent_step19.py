@@ -38,6 +38,11 @@ def test_payment_plan_retrieves_prior_escalation_disposition():
             in result["proposed_action"].rationale
         )
 
+        assert all(
+            "packet_json" not in item
+            for item in result["prior_escalations_evidence"]["data"]["escalations"]
+        )
+
         packet = result["escalation_packet"]
         assert any(
             item.get("tool_name") == "get_prior_escalations"

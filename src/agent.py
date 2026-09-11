@@ -46,6 +46,7 @@ from src.tools import (
     get_prior_disputes,
     get_prior_escalations,
     get_prior_promises,
+    get_prior_unsupported_already_paid_claims,
     get_risk_score,
     reconcile_payment_claim,
     verify_invoice_delivery,
@@ -1697,6 +1698,111 @@ def gather_already_paid_evidence_node(
 
     # ========================================================
     # TOOL 2
+    # PRIOR UNSUPPORTED ALREADY-PAID CLAIM MEMORY
+    # ========================================================
+
+    prior_unsupported_claims_result, violation = (
+        execute_guarded_tool(
+            guard=guard,
+
+            tool_name=(
+                "get_prior_unsupported_already_paid_claims"
+            ),
+
+            arguments={
+                "account_id":
+                    state[
+                        "account_id"
+                    ]
+            },
+
+            tool_function=(
+                get_prior_unsupported_already_paid_claims
+            ),
+        )
+    )
+
+    update[
+        "prior_unsupported_already_paid_claims_evidence"
+    ] = prior_unsupported_claims_result
+
+    if violation:
+
+        update[
+            "guard_violation_reason"
+        ] = violation
+
+        update[
+            "forced_escalation_reason"
+        ] = violation
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        prior_unsupported_claims_result[
+            "status"
+        ]
+        != "SUCCESS"
+    ):
+
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-2.7: get_prior_unsupported_already_paid_claims "
+            "did not return SUCCESS."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    if (
+        payment_result.get("data", {}).get(
+            "payment_claim_verified"
+        ) is False
+        and prior_unsupported_claims_result.get(
+            "data", {}
+        ).get("count", 0) >= 2
+    ):
+        update[
+            "forced_escalation_reason"
+        ] = (
+            "FR-7.4: third unsupported "
+            "ALREADY_PAID_CLAIM mandates escalation."
+        )
+
+        update[
+            "tool_call_count"
+        ] = guard.total_calls
+
+        update[
+            "tool_call_signatures"
+        ] = dict(
+            guard.signature_counts
+        )
+
+        return update
+
+    # ========================================================
+    # TOOL 3
     # ACCOUNT CONTEXT
     # ========================================================
 
@@ -1789,7 +1895,7 @@ def gather_already_paid_evidence_node(
     )
 
     # ========================================================
-    # TOOL 3
+    # TOOL 4
     # TRUSTED RISK SCORE
     # ========================================================
 
@@ -3296,6 +3402,12 @@ def propose_action_node(
         tool_call_ids = [
             state[
                 "payment_evidence"
+            ][
+                "tool_call_id"
+            ],
+
+            state[
+                "prior_unsupported_already_paid_claims_evidence"
             ][
                 "tool_call_id"
             ],

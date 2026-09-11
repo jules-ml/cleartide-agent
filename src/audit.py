@@ -202,6 +202,7 @@ def build_escalation_packet(
     "prior_promises_evidence",
     "prior_disputes_evidence",
     "prior_escalations_evidence",
+    "prior_unsupported_already_paid_claims_evidence",
     "account_evidence",
     "risk_evidence",
 ):

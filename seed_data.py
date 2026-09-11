@@ -222,6 +222,88 @@ def seed_data():
         ),
     )
 
+
+    # --------------------------------------------------------
+    # CLEAN ALREADY-PAID GOLDEN FIXTURE
+    # --------------------------------------------------------
+
+    cursor.execute(
+        """
+        INSERT OR REPLACE INTO accounts (
+            account_id,
+            customer_name,
+            industry,
+            debt_type,
+            account_status,
+            sms_consent,
+            email_allowed
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1002,
+            "Riverside Waste Services",
+            "Waste Hauling",
+            "COMMERCIAL",
+            "active",
+            0,
+            1,
+        ),
+    )
+
+    cursor.execute(
+        """
+        INSERT OR REPLACE INTO invoices (
+            invoice_id,
+            account_id,
+            amount,
+            issue_date,
+            due_date,
+            status
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            5002,
+            1002,
+            1000.00,
+            "2026-07-15",
+            "2026-08-15",
+            "open",
+        ),
+    )
+
+    cursor.execute(
+        """
+        DELETE FROM risk_scores
+        WHERE account_id = ?
+          AND invoice_id = ?
+        """,
+        (1002, 5002),
+    )
+
+    cursor.execute(
+        """
+        INSERT INTO risk_scores (
+            account_id,
+            invoice_id,
+            score,
+            risk_band,
+            model_version,
+            contributing_factors
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1002,
+            5002,
+            0.25,
+            "LOW",
+            "fixture-v0",
+            json.dumps(["clean already-paid golden fixture"]),
+        ),
+    )
+
     conn.commit()
     conn.close()
 

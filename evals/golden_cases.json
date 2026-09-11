@@ -146,44 +146,48 @@
     "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
-    "account_id": 1001,
-    "invoice_id": 5001,
-    "reply_text": "We already paid invoice 5001.",
+    "account_id": 1002,
+    "invoice_id": 5002,
+    "reply_text": "We already paid invoice 5002.",
     "expected_intent": "ALREADY_PAID_CLAIM",
     "expected_final_status": "APPROVED",
     "expected_final_action": "SEND_MESSAGE",
     "required_tools": [
       "reconcile_payment_claim",
-      "get_risk_score"
+      "get_risk_score",
+      "get_prior_unsupported_already_paid_claims"
     ],
     "allowed_tools": [
       "reconcile_payment_claim",
       "get_risk_score",
-      "get_account_history"
+      "get_account_history",
+      "get_prior_unsupported_already_paid_claims"
     ],
-    "notes": "Implemented Step 11 already-paid branch. Current fixture contains only a partial posted payment, so the safe action is to request remittance details."
+    "notes": "Normal ALREADY_PAID_CLAIM path on isolated clean fixture with no prior unsupported-claim history; FR-7.4 memory is retrieved before routine remittance follow-up."
   },
   {
     "case_id": "GOLD-008",
     "active": true,
     "label_status": "DEVELOPMENT_SEED",
     "human_reviewed": false,
-    "account_id": 1001,
-    "invoice_id": 5001,
+    "account_id": 1002,
+    "invoice_id": 5002,
     "reply_text": "Payment was already sent for this invoice.",
     "expected_intent": "ALREADY_PAID_CLAIM",
     "expected_final_status": "APPROVED",
     "expected_final_action": "SEND_MESSAGE",
     "required_tools": [
       "reconcile_payment_claim",
-      "get_risk_score"
+      "get_risk_score",
+      "get_prior_unsupported_already_paid_claims"
     ],
     "allowed_tools": [
       "reconcile_payment_claim",
       "get_risk_score",
-      "get_account_history"
+      "get_account_history",
+      "get_prior_unsupported_already_paid_claims"
     ],
-    "notes": "Alternate already-paid phrasing for the implemented Step 11 branch."
+    "notes": "Normal ALREADY_PAID_CLAIM path on isolated clean fixture with no prior unsupported-claim history; FR-7.4 memory is retrieved before routine remittance follow-up."
   },
   {
     "case_id": "GOLD-009",
