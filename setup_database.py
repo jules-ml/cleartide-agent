@@ -175,6 +175,30 @@ def setup_database():
     )
 
     # ========================================================
+    # CHANNEL OPT-OUTS
+    # ========================================================
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS channel_opt_outs (
+            account_id INTEGER NOT NULL,
+
+            channel TEXT NOT NULL
+                CHECK (channel IN ('EMAIL', 'SMS')),
+
+            opted_out_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+            source TEXT,
+
+            PRIMARY KEY (account_id, channel),
+
+            FOREIGN KEY (account_id)
+                REFERENCES accounts(account_id)
+        )
+        """
+    )
+
+    # ========================================================
     # DELIVERY LOG
     # ========================================================
 

@@ -3673,6 +3673,26 @@ def validate_proposal_node(
         )
     )
 
+    channel_opt_outs = state[
+        "account_evidence"
+    ][
+        "data"
+    ].get(
+        "channel_opt_outs",
+        [],
+    )
+
+    proposed_channel = (
+        proposal.target_channel.value
+        if proposal.target_channel is not None
+        else None
+    )
+
+    channel_opted_out = any(
+        opt_out.get("channel") == proposed_channel
+        for opt_out in channel_opt_outs
+    )
+
     invoice_records = state[
         "account_evidence"
     ][
@@ -3797,7 +3817,9 @@ def validate_proposal_node(
             sms_consent
         ),
 
-        channel_opted_out=False,
+        channel_opted_out=(
+            channel_opted_out
+        ),
 
         proposed_send_time=(
             state.get("proposed_send_time")

@@ -170,6 +170,73 @@ def record_tool_error(
     )
 
 
+
+# ============================================================
+# CHANNEL OPT-OUT PERSISTENCE
+# ============================================================
+
+def record_channel_opt_out(
+    account_id: int,
+    channel: str,
+    source: Optional[str] = None,
+) -> dict:
+    """
+    PR-4.2:
+    Persist an immediate, permanent customer opt-out for EMAIL or SMS.
+
+    Repeated opt-out requests are idempotent: the first recorded
+    timestamp and source are preserved.
+    """
+
+    normalized_channel = str(channel).upper()
+
+    if normalized_channel not in {"EMAIL", "SMS"}:
+        raise ValueError(
+            "channel must be EMAIL or SMS for customer opt-out persistence."
+        )
+
+    conn = get_connection()
+
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO channel_opt_outs (
+            account_id,
+            channel,
+            source
+        )
+        VALUES (?, ?, ?)
+        """,
+        (
+            account_id,
+            normalized_channel,
+            source,
+        ),
+    )
+
+    row = conn.execute(
+        """
+        SELECT account_id, channel, opted_out_at, source
+        FROM channel_opt_outs
+        WHERE account_id = ?
+          AND channel = ?
+        """,
+        (
+            account_id,
+            normalized_channel,
+        ),
+    ).fetchone()
+
+    conn.commit()
+    conn.close()
+
+    if row is None:
+        raise RuntimeError(
+            "Channel opt-out could not be persisted."
+        )
+
+    return dict(row)
+
+
 # ============================================================
 # TOOL 1
 # VERIFY INVOICE DELIVERY
@@ -610,6 +677,16 @@ def get_account_history(
         (account_id,),
     ).fetchall()
 
+    channel_opt_outs = conn.execute(
+        """
+        SELECT channel, opted_out_at, source
+        FROM channel_opt_outs
+        WHERE account_id = ?
+        ORDER BY channel
+        """,
+        (account_id,),
+    ).fetchall()
+
     conn.close()
 
     return _tool_response(
@@ -621,6 +698,9 @@ def get_account_history(
             "invoices": _rows_to_dicts(invoices),
             "recent_communications": _rows_to_dicts(
                 communications
+            ),
+            "channel_opt_outs": _rows_to_dicts(
+                channel_opt_outs
             ),
         },
         decision_id=decision_id,
