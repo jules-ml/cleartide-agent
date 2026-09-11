@@ -13,12 +13,14 @@
     "required_tools": [
       "verify_invoice_delivery",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_recent_outbound_contacts"
     ],
     "allowed_tools": [
       "verify_invoice_delivery",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_recent_outbound_contacts"
     ],
     "notes": "Implemented delivery-dispute vertical slice."
   },
@@ -36,12 +38,14 @@
     "required_tools": [
       "verify_invoice_delivery",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_recent_outbound_contacts"
     ],
     "allowed_tools": [
       "verify_invoice_delivery",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_recent_outbound_contacts"
     ],
     "notes": "Alternate delivery-dispute phrasing."
   },
@@ -59,12 +63,14 @@
     "required_tools": [
       "verify_invoice_delivery",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_recent_outbound_contacts"
     ],
     "allowed_tools": [
       "verify_invoice_delivery",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_recent_outbound_contacts"
     ],
     "notes": "Alternate delivery-dispute phrasing."
   },
@@ -82,12 +88,14 @@
     "required_tools": [
       "verify_invoice_delivery",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_recent_outbound_contacts"
     ],
     "allowed_tools": [
       "verify_invoice_delivery",
       "get_account_history",
-      "get_risk_score"
+      "get_risk_score",
+      "get_recent_outbound_contacts"
     ],
     "notes": "Alternate delivery-dispute phrasing."
   },
@@ -105,14 +113,16 @@
     "required_tools": [
       "get_payment_history",
       "get_risk_score",
-      "get_prior_escalations"
+      "get_prior_escalations",
+      "get_recent_outbound_contacts"
     ],
     "allowed_tools": [
       "get_payment_history",
       "get_risk_score",
       "get_prior_promises",
       "get_account_history",
-      "get_prior_escalations"
+      "get_prior_escalations",
+      "get_recent_outbound_contacts"
     ],
     "notes": "Future payment-plan branch. MEDIUM fixture risk currently does not permit autonomous plan approval."
   },
@@ -130,14 +140,16 @@
     "required_tools": [
       "get_payment_history",
       "get_risk_score",
-      "get_prior_escalations"
+      "get_prior_escalations",
+      "get_recent_outbound_contacts"
     ],
     "allowed_tools": [
       "get_payment_history",
       "get_risk_score",
       "get_prior_promises",
       "get_account_history",
-      "get_prior_escalations"
+      "get_prior_escalations",
+      "get_recent_outbound_contacts"
     ],
     "notes": "Future payment-plan branch."
   },
@@ -155,13 +167,15 @@
     "required_tools": [
       "reconcile_payment_claim",
       "get_risk_score",
-      "get_prior_unsupported_already_paid_claims"
+      "get_prior_unsupported_already_paid_claims",
+      "get_recent_outbound_contacts"
     ],
     "allowed_tools": [
       "reconcile_payment_claim",
       "get_risk_score",
       "get_account_history",
-      "get_prior_unsupported_already_paid_claims"
+      "get_prior_unsupported_already_paid_claims",
+      "get_recent_outbound_contacts"
     ],
     "notes": "Normal ALREADY_PAID_CLAIM path on isolated clean fixture with no prior unsupported-claim history; FR-7.4 memory is retrieved before routine remittance follow-up."
   },
@@ -179,13 +193,15 @@
     "required_tools": [
       "reconcile_payment_claim",
       "get_risk_score",
-      "get_prior_unsupported_already_paid_claims"
+      "get_prior_unsupported_already_paid_claims",
+      "get_recent_outbound_contacts"
     ],
     "allowed_tools": [
       "reconcile_payment_claim",
       "get_risk_score",
       "get_account_history",
-      "get_prior_unsupported_already_paid_claims"
+      "get_prior_unsupported_already_paid_claims",
+      "get_recent_outbound_contacts"
     ],
     "notes": "Normal ALREADY_PAID_CLAIM path on isolated clean fixture with no prior unsupported-claim history; FR-7.4 memory is retrieved before routine remittance follow-up."
   },

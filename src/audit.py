@@ -204,6 +204,7 @@ def build_escalation_packet(
     "prior_escalations_evidence",
     "prior_unsupported_already_paid_claims_evidence",
     "account_evidence",
+    "recent_outbound_contacts_evidence",
     "risk_evidence",
 ):
 

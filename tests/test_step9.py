@@ -144,7 +144,12 @@ def test_decision_and_tool_calls_are_linked():
 
     conn.close()
 
-    assert len(rows) == 3
+    assert len(rows) == 4
+
+    assert any(
+        row["tool_name"] == "get_recent_outbound_contacts"
+        for row in rows
+    )
 
     assert all(
         row[
@@ -618,7 +623,23 @@ def test_rejected_action_cannot_exceed_revision_limit():
 # PR-2.4 proposed send-time context reaches policy validation.
 # ============================================================
 
-def test_validator_node_forwards_proposed_send_time():
+def test_validator_node_forwards_proposed_send_time(monkeypatch):
+    def fake_recent_outbound_contacts(account_id, proposed_send_time, decision_id=None):
+        return {
+            "tool_call_id": "TC-STEP21",
+            "tool_name": "get_recent_outbound_contacts",
+            "status": "SUCCESS",
+            "data": {
+                "count": 0,
+                "contacts": [],
+            },
+        }
+
+    monkeypatch.setattr(
+        "src.agent.get_recent_outbound_contacts",
+        fake_recent_outbound_contacts,
+    )
+
     proposal = ProposedAction(
         action_type=ActionType.SEND_MESSAGE,
         target_channel=Channel.SMS,
@@ -630,7 +651,11 @@ def test_validator_node_forwards_proposed_send_time():
     )
 
     state = {
+        "account_id": 1001,
         "invoice_id": 5001,
+        "decision_id": 900021,
+        "tool_call_count": 0,
+        "tool_call_signatures": {},
         "reply_text": "I'll pay Friday.",
         "intent": IntentClassification(
             primary_intent=Intent.PROMISE_TO_PAY,

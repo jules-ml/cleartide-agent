@@ -372,6 +372,7 @@ def validate_action(
     sms_consent: bool = False,
     channel_opted_out: bool = False,
     proposed_send_time: Optional[datetime] = None,
+    recent_outbound_contact_count: Optional[int] = None,
 ) -> PolicyValidationResult:
     """
     Deterministically validate an agent-proposed action.
@@ -560,6 +561,33 @@ def validate_action(
             return rejected(
                 "PR-2.1",
                 "Consumer SMS is not permitted during configured quiet hours.",
+            )
+
+    # --------------------------------------------------------
+    # PR-2.3 — rolling seven-day contact frequency
+    # --------------------------------------------------------
+
+    contact_actions = {
+        ActionType.SEND_MESSAGE,
+        ActionType.RESEND_INVOICE,
+        ActionType.PROPOSE_PAYMENT_PLAN,
+    }
+
+    if (
+        proposal.action_type in contact_actions
+        and recent_outbound_contact_count is not None
+    ):
+        max_contacts = int(
+            policy["contact"]["max_contacts_per_7_days"]
+        )
+
+        if recent_outbound_contact_count >= max_contacts:
+            return rejected(
+                "PR-2.3",
+                (
+                    "Rolling seven-day outbound contact limit "
+                    f"of {max_contacts} has been reached."
+                ),
             )
 
     # --------------------------------------------------------

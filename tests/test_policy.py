@@ -269,3 +269,54 @@ def test_consumer_email_is_exempt_from_quiet_hours():
     )
 
     assert result.outcome == ValidatorOutcome.APPROVED
+
+# ============================================================
+# PR-2.3
+# Rolling seven-day outbound contact-frequency limit.
+# ============================================================
+
+def test_fourth_contact_with_three_prior_contacts_is_approved():
+    proposal = ProposedAction(
+        action_type=ActionType.SEND_MESSAGE,
+        target_channel=Channel.EMAIL,
+        rationale="Send customer a reminder.",
+        tool_call_ids=["TC-001"],
+        risk_score=0.20,
+        risk_band=RiskBand.LOW,
+        policy_version="0.1-dev",
+    )
+
+    result = validate_action(
+        proposal,
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        debt_classification=DebtClassification.CONSUMER,
+        recent_outbound_contact_count=3,
+    )
+
+    assert result.outcome == ValidatorOutcome.APPROVED
+
+
+def test_fifth_contact_with_four_prior_contacts_is_rejected():
+    proposal = ProposedAction(
+        action_type=ActionType.SEND_MESSAGE,
+        target_channel=Channel.EMAIL,
+        rationale="Send customer a reminder.",
+        tool_call_ids=["TC-001"],
+        risk_score=0.20,
+        risk_band=RiskBand.LOW,
+        policy_version="0.1-dev",
+    )
+
+    result = validate_action(
+        proposal,
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        debt_classification=DebtClassification.CONSUMER,
+        recent_outbound_contact_count=4,
+    )
+
+    assert result.outcome == ValidatorOutcome.REJECTED
+    assert "PR-2.3" in result.violated_constraints

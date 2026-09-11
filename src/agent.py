@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from langgraph.graph import (
@@ -48,6 +48,7 @@ from src.tools import (
     get_prior_disputes,
     get_prior_escalations,
     get_prior_promises,
+    get_recent_outbound_contacts,
     get_prior_unsupported_already_paid_claims,
     get_risk_score,
     reconcile_payment_claim,
@@ -1122,6 +1123,10 @@ def initialize_decision_node(
         time.perf_counter()
     )
 
+    decision_started_at_utc = (
+        datetime.now(timezone.utc)
+    )
+
     decision_id = start_decision(
         account_id=state[
             "account_id"
@@ -1146,6 +1151,9 @@ def initialize_decision_node(
 
         "started_at":
             started_at,
+
+        "decision_started_at_utc":
+            decision_started_at_utc,
 
         "reasoning_mode":
             DEVELOPMENT_REASONING_MODE,
@@ -3681,6 +3689,75 @@ def validate_proposal_node(
         None,
     )
 
+    contact_actions = {
+        ActionType.SEND_MESSAGE,
+        ActionType.RESEND_INVOICE,
+        ActionType.PROPOSE_PAYMENT_PLAN,
+    }
+
+    recent_outbound_contacts_result = None
+    recent_outbound_contact_count = None
+    contact_guard = None
+
+    if proposal.action_type in contact_actions:
+        contact_send_time = (
+            state.get("proposed_send_time")
+            or state.get("decision_started_at_utc")
+        )
+
+        if contact_send_time is None:
+            return {
+                "validation": escalate(
+                    "PR-2.3",
+                    "Outbound contact requires timing context for seven-day frequency evaluation.",
+                )
+            }
+
+        contact_guard = ToolGuardState(
+            decision_id=state["decision_id"],
+            total_calls=state.get("tool_call_count", 0),
+            signature_counts=dict(
+                state.get("tool_call_signatures", {})
+            ),
+        )
+
+        recent_outbound_contacts_result, verification = (
+            execute_guarded_tool(
+                guard=contact_guard,
+                tool_name="get_recent_outbound_contacts",
+                arguments={
+                    "account_id": state["account_id"],
+                    "proposed_send_time": contact_send_time,
+                },
+                tool_function=get_recent_outbound_contacts,
+            )
+        )
+
+        if verification or (
+            recent_outbound_contacts_result["status"] != "SUCCESS"
+        ):
+            return {
+                "recent_outbound_contacts_evidence": recent_outbound_contacts_result,
+                "tool_call_count": contact_guard.total_calls,
+                "tool_call_signatures": dict(contact_guard.signature_counts),
+                "validation": escalate(
+                    "FR-2.7",
+                    "get_recent_outbound_contacts did not return SUCCESS.",
+                ),
+            }
+
+        recent_outbound_contact_count = int(
+            recent_outbound_contacts_result["data"]["count"]
+        )
+
+        proposal = proposal.model_copy(
+            update={
+                "tool_call_ids": [
+                    *proposal.tool_call_ids,
+                    recent_outbound_contacts_result["tool_call_id"],
+                ]
+            }
+        )
     validation = validate_action(
         proposal,
 
@@ -3721,12 +3798,23 @@ def validate_proposal_node(
         proposed_send_time=(
             state.get("proposed_send_time")
         ),
+
+        recent_outbound_contact_count=(
+            recent_outbound_contact_count
+        ),
     )
 
-    return {
-        "validation":
-            validation,
+    update = {
+        "validation": validation,
     }
+
+    if recent_outbound_contacts_result is not None:
+        update["recent_outbound_contacts_evidence"] = recent_outbound_contacts_result
+        update["tool_call_count"] = contact_guard.total_calls
+        update["tool_call_signatures"] = dict(contact_guard.signature_counts)
+        update["proposed_action"] = proposal
+
+    return update
 
 
 # ============================================================

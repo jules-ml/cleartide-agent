@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from src.database import get_connection
@@ -859,6 +860,84 @@ def get_prior_unsupported_already_paid_claims(
             ),
             "unsupported_claims":
                 unsupported_claims,
+        },
+        decision_id=decision_id,
+    )
+
+# ============================================================
+# TOOL 11
+# GET RECENT OUTBOUND CONTACTS
+# ============================================================
+
+def get_recent_outbound_contacts(
+    account_id: int,
+    proposed_send_time: datetime,
+    decision_id: Optional[int] = None,
+) -> dict:
+    """
+    PR-2.3.
+    Retrieve outbound customer contacts in the rolling
+    seven-day window preceding the proposed send time.
+
+    Stored SQLite CURRENT_TIMESTAMP values are treated as UTC.
+    """
+
+    if proposed_send_time.tzinfo is None:
+        raise ValueError(
+            "proposed_send_time must be timezone-aware."
+        )
+
+    send_time_utc = proposed_send_time.astimezone(
+        timezone.utc
+    )
+
+    window_start_utc = (
+        send_time_utc
+        - timedelta(days=7)
+    )
+
+    window_start_text = window_start_utc.strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    send_time_text = send_time_utc.strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    conn = get_connection()
+
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM communications
+        WHERE account_id = ?
+          AND direction = 'OUTBOUND'
+          AND created_at >= ?
+          AND created_at < ?
+        ORDER BY created_at DESC, communication_id DESC
+        """,
+        (
+            account_id,
+            window_start_text,
+            send_time_text,
+        ),
+    ).fetchall()
+
+    conn.close()
+
+    contacts = _rows_to_dicts(rows)
+
+    return _tool_response(
+        tool_name="get_recent_outbound_contacts",
+        arguments={
+            "account_id": account_id,
+            "proposed_send_time": proposed_send_time,
+        },
+        data={
+            "count": len(contacts),
+            "window_start_utc": window_start_utc.isoformat(),
+            "proposed_send_time_utc": send_time_utc.isoformat(),
+            "contacts": contacts,
         },
         decision_id=decision_id,
     )

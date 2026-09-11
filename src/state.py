@@ -32,6 +32,7 @@ class AgentState(TypedDict, total=False):
 
     decision_id: int
     started_at: float
+    decision_started_at_utc: datetime
     latency_ms: float
     reasoning_mode: str
 
@@ -63,6 +64,8 @@ class AgentState(TypedDict, total=False):
 
     account_evidence: dict
 
+    recent_outbound_contacts_evidence: dict
+
     risk_evidence: dict
 
     risk: RiskResult
@@ -72,6 +75,7 @@ class AgentState(TypedDict, total=False):
     # ========================================================
 
     tool_call_count: int
+    tool_call_signatures: dict[str, int]
     
     # ========================================================
     # PROPOSED DECISION
