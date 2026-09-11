@@ -1,5 +1,8 @@
+from datetime import datetime, timedelta, timezone
+
 from src.agent import (
     revise_action_node,
+    validate_proposal_node,
     route_after_validation,
     run_aca,
 )
@@ -21,6 +24,9 @@ from src.policy import (
 from src.schemas import (
     ActionType,
     Channel,
+    DebtClassification,
+    Intent,
+    IntentClassification,
     PolicyValidationResult,
     ProposedAction,
     RiskBand,
@@ -462,6 +468,98 @@ def test_sms_rejection_can_be_revised_to_email():
     )
 
 
+def test_quiet_hours_sms_rejection_can_be_revised_to_email():
+
+    proposal = ProposedAction(
+        action_type=(
+            ActionType.SEND_MESSAGE
+        ),
+
+        target_channel=(
+            Channel.SMS
+        ),
+
+        message_body=(
+            "Test message"
+        ),
+
+        rationale=(
+            "Test rationale"
+        ),
+
+        tool_call_ids=[
+            "TC-TEST"
+        ],
+
+        risk_score=0.20,
+
+        risk_band=(
+            RiskBand.LOW
+        ),
+
+        policy_version=(
+            "0.1-dev"
+        ),
+    )
+
+    validation = (
+        PolicyValidationResult(
+            outcome=(
+                ValidatorOutcome.REJECTED
+            ),
+
+            violated_constraints=[
+                "PR-2.1"
+            ],
+
+            explanation=(
+                "Consumer SMS falls within quiet hours."
+            ),
+        )
+    )
+
+    state = {
+        "proposed_action":
+            proposal,
+
+        "validation":
+            validation,
+
+        "revision_count":
+            0,
+
+        "account_evidence":
+            {
+                "data":
+                    {
+                        "account":
+                            {
+                                "email_allowed":
+                                    1
+                            }
+                    }
+            },
+    }
+
+    update = revise_action_node(
+        state
+    )
+
+    assert (
+        update[
+            "revision_count"
+        ]
+        == 1
+    )
+
+    assert (
+        update[
+            "proposed_action"
+        ].target_channel
+        == Channel.EMAIL
+    )
+
+
 # ============================================================
 # TEST 6
 # REVISION LIMIT ENFORCED
@@ -514,3 +612,56 @@ def test_rejected_action_cannot_exceed_revision_limit():
         )
         == "escalation"
     )
+
+# ============================================================
+# STEP 21
+# PR-2.4 proposed send-time context reaches policy validation.
+# ============================================================
+
+def test_validator_node_forwards_proposed_send_time():
+    proposal = ProposedAction(
+        action_type=ActionType.SEND_MESSAGE,
+        target_channel=Channel.SMS,
+        rationale="Test quiet-hours forwarding.",
+        tool_call_ids=["TC-TEST"],
+        risk_score=0.20,
+        risk_band=RiskBand.LOW,
+        policy_version="0.1-dev",
+    )
+
+    state = {
+        "invoice_id": 5001,
+        "reply_text": "I'll pay Friday.",
+        "intent": IntentClassification(
+            primary_intent=Intent.PROMISE_TO_PAY,
+            confidence=0.95,
+        ),
+        "debt_classification": DebtClassification.CONSUMER,
+        "proposed_action": proposal,
+        "proposed_send_time": datetime(
+            2026,
+            9,
+            11,
+            21,
+            0,
+            tzinfo=timezone(timedelta(hours=-4)),
+        ),
+        "account_evidence": {
+            "data": {
+                "account": {
+                    "sms_consent": 1,
+                },
+                "invoices": [
+                    {
+                        "invoice_id": 5001,
+                        "amount": 100.0,
+                    }
+                ],
+            }
+        },
+    }
+
+    update = validate_proposal_node(state)
+
+    assert update["validation"].outcome == ValidatorOutcome.REJECTED
+    assert "PR-2.1" in update["validation"].violated_constraints

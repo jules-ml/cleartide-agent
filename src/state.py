@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TypedDict
 
 from src.schemas import (
@@ -23,6 +24,7 @@ class AgentState(TypedDict, total=False):
     account_id: int
     invoice_id: int
     reply_text: str
+    proposed_send_time: datetime
 
     # ========================================================
     # DECISION AUDIT

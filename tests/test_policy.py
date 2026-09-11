@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
 from src.policy import validate_action
 from src.schemas import (
     ActionType,
     Channel,
+    DebtClassification,
     Intent,
     ProposedAction,
     RiskBand,
@@ -163,3 +166,106 @@ def test_attorney_reference_escalates():
 # GV-5
 # Kill switch is tested later by policy fixture/config override.
 # ============================================================
+
+# ============================================================
+# PR-2.1 / PR-2.4
+# Consumer SMS quiet-hours enforcement.
+# ============================================================
+
+def make_sms_message():
+    return ProposedAction(
+        action_type=ActionType.SEND_MESSAGE,
+        target_channel=Channel.SMS,
+        rationale="Send customer a reminder.",
+        tool_call_ids=["TC-001"],
+        risk_score=0.20,
+        risk_band=RiskBand.LOW,
+        policy_version="0.1-dev",
+    )
+
+
+def test_consumer_sms_at_quiet_hours_start_is_rejected():
+    result = validate_action(
+        make_sms_message(),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        debt_classification=DebtClassification.CONSUMER,
+        sms_consent=True,
+        proposed_send_time=datetime(
+            2026,
+            9,
+            11,
+            21,
+            0,
+            tzinfo=timezone(timedelta(hours=-4)),
+        ),
+    )
+
+    assert result.outcome == ValidatorOutcome.REJECTED
+    assert "PR-2.1" in result.violated_constraints
+
+
+def test_consumer_sms_at_quiet_hours_end_is_approved():
+    result = validate_action(
+        make_sms_message(),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        debt_classification=DebtClassification.CONSUMER,
+        sms_consent=True,
+        proposed_send_time=datetime(
+            2026,
+            9,
+            12,
+            8,
+            0,
+            tzinfo=timezone(timedelta(hours=-4)),
+        ),
+    )
+
+    assert result.outcome == ValidatorOutcome.APPROVED
+
+
+def test_consumer_sms_without_send_time_escalates():
+    result = validate_action(
+        make_sms_message(),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        debt_classification=DebtClassification.CONSUMER,
+        sms_consent=True,
+    )
+
+    assert result.outcome == ValidatorOutcome.ESCALATE
+    assert "PR-2.4" in result.violated_constraints
+
+
+def test_consumer_email_is_exempt_from_quiet_hours():
+    proposal = ProposedAction(
+        action_type=ActionType.SEND_MESSAGE,
+        target_channel=Channel.EMAIL,
+        rationale="Send customer a reminder.",
+        tool_call_ids=["TC-001"],
+        risk_score=0.20,
+        risk_band=RiskBand.LOW,
+        policy_version="0.1-dev",
+    )
+
+    result = validate_action(
+        proposal,
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        debt_classification=DebtClassification.CONSUMER,
+        proposed_send_time=datetime(
+            2026,
+            9,
+            11,
+            22,
+            0,
+            tzinfo=timezone(timedelta(hours=-4)),
+        ),
+    )
+
+    assert result.outcome == ValidatorOutcome.APPROVED

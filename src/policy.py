@@ -323,6 +323,40 @@ def check_sensitive_language(
 
     return None
 
+def is_within_consumer_quiet_hours(
+    proposed_send_time: datetime,
+    *,
+    policy: dict,
+) -> bool:
+    """PR-2.1 / PR-2.4: evaluate configured consumer quiet hours."""
+
+    if proposed_send_time.tzinfo is None:
+        raise ValueError(
+            "proposed_send_time must be timezone-aware."
+        )
+
+    quiet_hours = policy["contact"]["consumer_quiet_hours"]
+
+    start = datetime.strptime(
+        quiet_hours["start"],
+        "%H:%M",
+    ).time()
+
+    end = datetime.strptime(
+        quiet_hours["end"],
+        "%H:%M",
+    ).time()
+
+    local_time = proposed_send_time.timetz().replace(tzinfo=None)
+
+    if start < end:
+        return start <= local_time < end
+
+    return (
+        local_time >= start
+        or local_time < end
+    )
+
 # ============================================================
 # MAIN VALIDATOR
 # ============================================================
@@ -337,6 +371,7 @@ def validate_action(
     ledger_amount: Optional[float] = None,
     sms_consent: bool = False,
     channel_opted_out: bool = False,
+    proposed_send_time: Optional[datetime] = None,
 ) -> PolicyValidationResult:
     """
     Deterministically validate an agent-proposed action.
@@ -495,6 +530,36 @@ def validate_action(
             return rejected(
                 "PR-4.1",
                 "SMS cannot be used without recorded affirmative consent.",
+            )
+
+    # --------------------------------------------------------
+    # PR-2.1 / PR-2.4 — consumer quiet hours
+    # --------------------------------------------------------
+
+    if (
+        debt_classification == DebtClassification.CONSUMER
+        and proposal.target_channel == Channel.SMS
+    ):
+
+        if proposed_send_time is None:
+            return escalate(
+                "PR-2.4",
+                "Consumer SMS requires an explicit proposed send time for quiet-hours evaluation.",
+            )
+
+        if proposed_send_time.tzinfo is None:
+            return escalate(
+                "PR-2.4",
+                "Consumer SMS proposed send time must be timezone-aware.",
+            )
+
+        if is_within_consumer_quiet_hours(
+            proposed_send_time,
+            policy=policy,
+        ):
+            return rejected(
+                "PR-2.1",
+                "Consumer SMS is not permitted during configured quiet hours.",
             )
 
     # --------------------------------------------------------

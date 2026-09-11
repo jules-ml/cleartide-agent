@@ -1,4 +1,6 @@
 import time
+from datetime import datetime
+from typing import Optional
 
 from langgraph.graph import (
     END,
@@ -3715,6 +3717,10 @@ def validate_proposal_node(
         ),
 
         channel_opted_out=False,
+
+        proposed_send_time=(
+            state.get("proposed_send_time")
+        ),
     )
 
     return {
@@ -3835,12 +3841,14 @@ def revise_action_node(
 
     # ========================================================
     # SAFE REVISION RULE
-    # PR-4.1
+    # PR-4.1 / PR-2.1
     # ========================================================
 
     if (
-        "PR-4.1"
-        in violations
+        (
+            "PR-4.1" in violations
+            or "PR-2.1" in violations
+        )
         and proposal.target_channel
         == Channel.SMS
         and email_allowed
@@ -3856,7 +3864,7 @@ def revise_action_node(
                         (
                             proposal.rationale
                             + " Revision 1: SMS was "
-                            + "not authorized, so the "
+                            + "not permitted by policy, so the "
                             + "channel was changed to "
                             + "EMAIL."
                         ),
@@ -3873,7 +3881,7 @@ def revise_action_node(
 
             "revision_reason":
                 (
-                    "PR-4.1 SMS rejection "
+                    "SMS policy rejection "
                     "corrected by switching "
                     "to permitted EMAIL."
                 ),
@@ -4410,6 +4418,7 @@ def run_aca(
     account_id: int,
     invoice_id: int,
     reply_text: str,
+    proposed_send_time: Optional[datetime] = None,
 ):
 
     initial_state: AgentState = {
@@ -4421,6 +4430,9 @@ def run_aca(
 
         "reply_text":
             reply_text,
+
+        "proposed_send_time":
+            proposed_send_time,
     }
 
     return graph.invoke(
