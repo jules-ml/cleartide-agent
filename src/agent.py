@@ -243,6 +243,194 @@ def mock_classify_reply(
 
 
 # ============================================================
+# FR-4.5
+# DETERMINISTIC OUTBOUND CHANNEL SELECTION
+# ============================================================
+
+def select_outbound_channel(
+    state: AgentState,
+) -> tuple[Channel, str]:
+    """
+    Select the safest permitted outbound channel using trusted
+    account permissions, recent responsiveness, and risk.
+
+    Quiet-hours and final consent enforcement remain hard
+    validator responsibilities.
+    """
+
+    account_context = state[
+        "account_evidence"
+    ][
+        "data"
+    ]
+
+    account_data = account_context[
+        "account"
+    ]
+
+    recent_communications = (
+        account_context.get(
+            "recent_communications",
+            [],
+        )
+        or []
+    )
+
+    risk = state.get("risk")
+    risk_band_value = getattr(
+        getattr(risk, "band", None),
+        "value",
+        "LOW",
+    )
+
+    policy = load_policy()
+
+    soft_constraints = policy[
+        "soft_constraints"
+    ]
+
+    if (
+        soft_constraints.get(
+            "prefer_human_call_flag_for_high_risk_accounts",
+            False,
+        )
+        and risk_band_value
+        in {
+            "HIGH",
+            "CRITICAL",
+        }
+    ):
+        return (
+            Channel.HUMAN_CALL_FLAG,
+            (
+                "Trusted risk is "
+                f"{risk_band_value}; policy prefers human "
+                "follow-up for higher-risk accounts."
+            ),
+        )
+
+    email_allowed = bool(
+        account_data.get(
+            "email_allowed",
+            False,
+        )
+    )
+
+    sms_allowed = bool(
+        account_data.get(
+            "sms_consent",
+            False,
+        )
+    )
+
+    if (
+        not email_allowed
+        and not sms_allowed
+    ):
+        return (
+            Channel.HUMAN_CALL_FLAG,
+            (
+                "Neither email nor SMS is currently permitted "
+                "for autonomous outbound contact."
+            ),
+        )
+
+    inbound_counts = {
+        "EMAIL": 0,
+        "SMS": 0,
+    }
+
+    for communication in recent_communications:
+        direction = str(
+            communication.get(
+                "direction",
+                "",
+            )
+        ).upper()
+
+        channel = str(
+            communication.get(
+                "channel",
+                "",
+            )
+        ).upper()
+
+        if (
+            direction == "INBOUND"
+            and channel in inbound_counts
+        ):
+            inbound_counts[
+                channel
+            ] += 1
+
+    if (
+        email_allowed
+        and sms_allowed
+    ):
+        if (
+            inbound_counts["SMS"]
+            > inbound_counts["EMAIL"]
+        ):
+            return (
+                Channel.SMS,
+                (
+                    "Both channels are permitted, and recent "
+                    "history shows greater inbound "
+                    "responsiveness by SMS."
+                ),
+            )
+
+        if (
+            inbound_counts["EMAIL"]
+            > inbound_counts["SMS"]
+        ):
+            return (
+                Channel.EMAIL,
+                (
+                    "Both channels are permitted, and recent "
+                    "history shows greater inbound "
+                    "responsiveness by email."
+                ),
+            )
+
+        if (
+            risk_band_value == "LOW"
+            and soft_constraints.get(
+                "prefer_email_for_low_risk_accounts",
+                False,
+            )
+        ):
+            return (
+                Channel.EMAIL,
+                (
+                    "Both channels are permitted with equal "
+                    "responsiveness; policy prefers email for "
+                    "low-risk accounts."
+                ),
+            )
+
+        return (
+            Channel.EMAIL,
+            (
+                "Both channels are permitted with equal "
+                "responsiveness; email is the deterministic "
+                "fallback channel."
+            ),
+        )
+
+    if email_allowed:
+        return (
+            Channel.EMAIL,
+            "Email is the only permitted autonomous channel.",
+        )
+
+    return (
+        Channel.SMS,
+        "SMS is the only permitted autonomous channel.",
+    )
+
+
+# ============================================================
 # MOCK DELIVERY ACTION RECOMMENDER
 # ============================================================
 
@@ -285,6 +473,10 @@ def mock_recommend_delivery_action(
 
     if was_delivered is False:
 
+        selected_channel, channel_rationale = (
+            select_outbound_channel(state)
+        )
+
         rationale = (
             "Verified delivery evidence indicates "
             "that the invoice was not successfully "
@@ -305,13 +497,45 @@ def mock_recommend_delivery_action(
                 f"{failure_reason}."
             )
 
+        rationale += (
+            f" {channel_rationale}"
+        )
+
+        if (
+            selected_channel
+            == Channel.HUMAN_CALL_FLAG
+        ):
+            return AgentActionRecommendation(
+                action_type=(
+                    ActionType.FLAG_FOR_HUMAN_CALL
+                ),
+
+                target_channel=(
+                    Channel.HUMAN_CALL_FLAG
+                ),
+
+                message_body=None,
+
+                rationale=(
+                    rationale
+                    + " Human follow-up is required "
+                    "before the invoice is resent."
+                ),
+            )
+
+        channel_label = (
+            "email"
+            if selected_channel == Channel.EMAIL
+            else "SMS"
+        )
+
         return AgentActionRecommendation(
             action_type=(
                 ActionType.RESEND_INVOICE
             ),
 
             target_channel=(
-                Channel.EMAIL
+                selected_channel
             ),
 
             message_body=(
@@ -319,7 +543,7 @@ def mock_recommend_delivery_action(
                 "Our records indicate that the "
                 "previous invoice delivery was "
                 "unsuccessful. We will resend "
-                "the invoice by email."
+                f"the invoice by {channel_label}."
             ),
 
             rationale=rationale,
@@ -445,59 +669,62 @@ def mock_recommend_already_paid_action(
 
     # ========================================================
     # CASE 2
-    # CLAIM IS NOT VERIFIED, BUT EMAIL IS AVAILABLE
+    # PAYMENT IS NOT VERIFIED
     # ========================================================
 
-    if email_allowed:
+    selected_channel, channel_rationale = (
+        select_outbound_channel(state)
+    )
 
+    if (
+        selected_channel
+        == Channel.HUMAN_CALL_FLAG
+    ):
         return AgentActionRecommendation(
             action_type=(
-                ActionType.SEND_MESSAGE
+                ActionType.FLAG_FOR_HUMAN_CALL
             ),
 
             target_channel=(
-                Channel.EMAIL
+                Channel.HUMAN_CALL_FLAG
             ),
 
-            message_body=(
-                "Thank you for the payment update. "
-                "We were unable to match a full payment to this "
-                "invoice in our current records. Please reply "
-                "with the payment date, amount, and transaction "
-                "or reference number so we can reconcile it."
-            ),
+            message_body=None,
 
             rationale=(
-                "Ledger reconciliation did not verify full "
-                "payment of the invoice. Current posted payments "
-                f"total ${posted_payment_total:,.2f} against an "
-                f"invoice amount of ${invoice_amount:,.2f}. "
-                "The customer should be asked for remittance "
-                "details rather than being told that no payment "
-                "was made."
+                "The payment claim could not be verified from the "
+                "ledger. "
+                + channel_rationale
+                + " Human follow-up is required."
             ),
         )
 
-    # ========================================================
-    # CASE 3
-    # CLAIM NOT VERIFIED AND NO EMAIL AVAILABLE
-    # ========================================================
-
     return AgentActionRecommendation(
         action_type=(
-            ActionType.FLAG_FOR_HUMAN_CALL
+            ActionType.SEND_MESSAGE
         ),
 
         target_channel=(
-            Channel.HUMAN_CALL_FLAG
+            selected_channel
         ),
 
-        message_body=None,
+        message_body=(
+            "Thank you for the payment update. "
+            "We were unable to match a full payment to this "
+            "invoice in our current records. Please reply "
+            "with the payment date, amount, and transaction "
+            "or reference number so we can reconcile it."
+        ),
 
         rationale=(
-            "The payment claim could not be verified from the "
-            "ledger and the account does not permit email "
-            "communication. Human follow-up is required."
+            "Ledger reconciliation did not verify full "
+            "payment of the invoice. Current posted payments "
+            f"total ${posted_payment_total:,.2f} against an "
+            f"invoice amount of ${invoice_amount:,.2f}. "
+            "The customer should be asked for remittance "
+            "details rather than being told that no payment "
+            "was made. "
+            + channel_rationale
         ),
     )
 
@@ -636,21 +863,6 @@ def mock_recommend_payment_plan_action(
         risk.band.value
     )
 
-    account_data = state[
-        "account_evidence"
-    ][
-        "data"
-    ][
-        "account"
-    ]
-
-    email_allowed = bool(
-        account_data.get(
-            "email_allowed",
-            False,
-        )
-    )
-
     (
         duration_days,
         down_payment_pct,
@@ -689,11 +901,17 @@ def mock_recommend_payment_plan_action(
         )
 
     # ========================================================
-    # NO PERMITTED EMAIL CHANNEL
+    # OUTBOUND CHANNEL SELECTION
     # ========================================================
 
-    if not email_allowed:
+    selected_channel, channel_rationale = (
+        select_outbound_channel(state)
+    )
 
+    if (
+        selected_channel
+        == Channel.HUMAN_CALL_FLAG
+    ):
         return AgentActionRecommendation(
             action_type=(
                 ActionType.FLAG_FOR_HUMAN_CALL
@@ -708,9 +926,9 @@ def mock_recommend_payment_plan_action(
             rationale=(
                 "A payment-plan request was received and "
                 "supporting payment history, promise history, "
-                "and risk evidence were retrieved, but email "
-                "communication is not permitted for this "
-                "account. Human follow-up is required."
+                "and risk evidence were retrieved. "
+                + channel_rationale
+                + " Human follow-up is required."
             ),
         )
 
@@ -738,7 +956,7 @@ def mock_recommend_payment_plan_action(
         ),
 
         target_channel=(
-            Channel.EMAIL
+            selected_channel
         ),
 
         message_body=(
@@ -757,7 +975,8 @@ def mock_recommend_payment_plan_action(
             f"The current risk band is {risk_band_value}. "
             "The proposal must pass the deterministic policy "
             "validator before any customer-facing execution."
-            f"{disposition_context}"
+            f"{disposition_context} "
+            + channel_rationale
         ),
     )
 
@@ -829,21 +1048,6 @@ def mock_recommend_promise_to_pay_action(
         risk.band.value
     )
 
-    account_data = state[
-        "account_evidence"
-    ][
-        "data"
-    ][
-        "account"
-    ]
-
-    email_allowed = bool(
-        account_data.get(
-            "email_allowed",
-            False,
-        )
-    )
-
     # ========================================================
     # CASE 1
     # PRIOR BROKEN PROMISE EXISTS
@@ -906,53 +1110,54 @@ def mock_recommend_promise_to_pay_action(
     # ROUTINE ACKNOWLEDGEMENT
     # ========================================================
 
-    if email_allowed:
+    selected_channel, channel_rationale = (
+        select_outbound_channel(state)
+    )
 
+    if (
+        selected_channel
+        == Channel.HUMAN_CALL_FLAG
+    ):
         return AgentActionRecommendation(
             action_type=(
-                ActionType.SEND_MESSAGE
+                ActionType.FLAG_FOR_HUMAN_CALL
             ),
 
             target_channel=(
-                Channel.EMAIL
+                Channel.HUMAN_CALL_FLAG
             ),
 
-            message_body=(
-                "Thank you for the update. We have noted "
-                "your commitment to make the payment as "
-                "described in your message."
-            ),
+            message_body=None,
 
             rationale=(
                 "The customer made a promise to pay. "
-                "Structured promise history contains no "
-                "prior broken promises requiring additional "
-                "attention, the current risk band is "
-                f"{risk_band_value}, and email communication "
-                "is permitted."
+                + channel_rationale
+                + " Human follow-up is required."
             ),
         )
 
-    # ========================================================
-    # CASE 4
-    # NO PERMITTED EMAIL CHANNEL
-    # ========================================================
-
     return AgentActionRecommendation(
         action_type=(
-            ActionType.FLAG_FOR_HUMAN_CALL
+            ActionType.SEND_MESSAGE
         ),
 
         target_channel=(
-            Channel.HUMAN_CALL_FLAG
+            selected_channel
         ),
 
-        message_body=None,
+        message_body=(
+            "Thank you for the update. We have noted "
+            "your commitment to make the payment as "
+            "described in your message."
+        ),
 
         rationale=(
-            "The customer made a promise to pay, but the "
-            "account does not permit email communication. "
-            "Human follow-up is required."
+            "The customer made a promise to pay. "
+            "Structured promise history contains no "
+            "prior broken promises requiring additional "
+            "attention, and the current risk band is "
+            f"{risk_band_value}. "
+            + channel_rationale
         ),
     )
 
