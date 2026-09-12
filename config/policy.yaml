@@ -104,6 +104,31 @@ escalation:
     - death
     - serious illness
 
+truthfulness:
+  debt_assertion_terms:
+    - "you owe"
+    - "amount due"
+    - "balance due"
+    - "outstanding balance"
+    - "invoice remains unpaid"
+    - "payment is overdue"
+
+  unauthorized_consequence_terms:
+    - "legal action"
+    - "lawsuit"
+    - "wage garnishment"
+    - "seize your"
+    - "arrest"
+    - "credit bureau"
+    - "credit score"
+    - "service suspension"
+    - "service termination"
+
+  third_party_representation_terms:
+    - "collection agency"
+    - "third-party collector"
+    - "debt collector acting on behalf"
+
 hard_constraints:
   autonomous_discount_allowed: false
   autonomous_waiver_allowed: false

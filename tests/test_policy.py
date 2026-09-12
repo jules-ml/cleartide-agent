@@ -418,3 +418,101 @@ def test_standard_tone_high_value_account_is_not_blocked_by_pr55():
     )
 
     assert "PR-5.5" not in result.violated_constraints
+
+
+# ============================================================
+# PR-3
+# Customer-facing messages must remain truthful and authorized.
+# ============================================================
+
+def make_pr3_email_message(message_body):
+    return ProposedAction(
+        action_type=ActionType.SEND_MESSAGE,
+        target_channel=Channel.EMAIL,
+        message_body=message_body,
+        rationale="Test PR-3 customer-facing message.",
+        tool_call_ids=["TC-001"],
+        risk_score=0.20,
+        risk_band=RiskBand.LOW,
+        policy_version="0.1-dev",
+    )
+
+
+def test_pr3_rejects_unauthorized_consequence_language():
+    result = validate_action(
+        make_pr3_email_message(
+            "Failure to pay may result in LEGAL ACTION."
+        ),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        ledger_amount=1000.00,
+    )
+
+    assert result.outcome == ValidatorOutcome.REJECTED
+    assert result.violated_constraints == ["PR-3"]
+    assert result.violated_fields == ["message_body"]
+
+
+def test_pr3_rejects_third_party_collector_representation():
+    result = validate_action(
+        make_pr3_email_message(
+            "We are a collection agency contacting you about this invoice."
+        ),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        ledger_amount=1000.00,
+    )
+
+    assert result.outcome == ValidatorOutcome.REJECTED
+    assert result.violated_constraints == ["PR-3"]
+    assert result.violated_fields == ["message_body"]
+
+
+def test_pr3_rejects_debt_assertion_without_ledger_evidence():
+    result = validate_action(
+        make_pr3_email_message(
+            "Your outstanding balance is $1,000."
+        ),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        ledger_amount=None,
+    )
+
+    assert result.outcome == ValidatorOutcome.REJECTED
+    assert result.violated_constraints == ["PR-3"]
+    assert result.violated_fields == ["message_body", "ledger_amount"]
+
+
+def test_pr3_allows_safe_message_without_debt_assertion():
+    result = validate_action(
+        make_pr3_email_message(
+            "Thank you for the update. Please contact us if you have questions."
+        ),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        ledger_amount=None,
+    )
+
+    assert result.outcome == ValidatorOutcome.APPROVED
+    assert result.violated_constraints == []
+    assert result.violated_fields == []
+
+
+def test_pr3_rejects_debt_assertion_amount_that_disagrees_with_ledger():
+    result = validate_action(
+        make_pr3_email_message(
+            "Your outstanding balance is $9,999."
+        ),
+        primary_intent=Intent.PROMISE_TO_PAY,
+        intent_confidence=0.95,
+        reply_text="I will pay Friday.",
+        ledger_amount=1000.00,
+    )
+
+    assert result.outcome == ValidatorOutcome.REJECTED
+    assert result.violated_constraints == ["PR-3"]
+    assert result.violated_fields == ["message_body", "ledger_amount"]

@@ -101,6 +101,31 @@ def escalate(
     )
 
 
+def extract_dollar_amounts(text: str) -> list[float]:
+    """Extract distinct explicit dollar amounts from text."""
+
+    matches = re.findall(
+        r"\$\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
+        text,
+    )
+
+    amounts = []
+
+    for match in matches:
+        try:
+            amount = float(match.replace(",", ""))
+        except ValueError:
+            continue
+
+        if not any(
+            abs(amount - existing) < 0.01
+            for existing in amounts
+        ):
+            amounts.append(amount)
+
+    return amounts
+
+
 def determine_disputed_amount(
     reply_text: str,
     ledger_amount: float,
@@ -116,31 +141,9 @@ def determine_disputed_amount(
         - ambiguous or incomplete input returns None
     """
 
-    matches = re.findall(
-        r"\$\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)",
-        reply_text,
+    unique_amounts = extract_dollar_amounts(
+        reply_text
     )
-
-    amounts = []
-
-    for match in matches:
-        try:
-            amount = float(
-                match.replace(",", "")
-            )
-        except ValueError:
-            continue
-
-        amounts.append(amount)
-
-    unique_amounts = []
-
-    for amount in amounts:
-        if not any(
-            abs(amount - existing) < 0.01
-            for existing in unique_amounts
-        ):
-            unique_amounts.append(amount)
 
     ledger_matches = [
         amount
@@ -387,6 +390,25 @@ def calculate_tenure_months(
     return max(months, 0)
 
 
+
+def find_matching_policy_terms(
+    text: Optional[str],
+    terms: list[str],
+) -> list[str]:
+    """Return configured policy terms present in text, case-insensitively."""
+
+    if not text:
+        return []
+
+    normalized_text = text.lower()
+
+    return [
+        term
+        for term in terms
+        if term.lower() in normalized_text
+    ]
+
+
 # ============================================================
 # MAIN VALIDATOR
 # ============================================================
@@ -500,6 +522,89 @@ def validate_action(
 
     if sensitive_language_result is not None:
         return sensitive_language_result
+
+    # --------------------------------------------------------
+    # PR-3 — customer-facing truthfulness and representation
+    # --------------------------------------------------------
+
+    message_body = proposal.message_body
+
+    if message_body:
+        truthfulness_policy = policy["truthfulness"]
+        hard_constraints = policy["hard_constraints"]
+
+        consequence_terms = find_matching_policy_terms(
+            message_body,
+            truthfulness_policy["unauthorized_consequence_terms"],
+        )
+
+        if (
+            consequence_terms
+            and not hard_constraints["unauthorized_consequence_language_allowed"]
+        ):
+            return rejected(
+                "PR-3",
+                (
+                    "Proposed customer message contains unauthorized "
+                    "consequence language: "
+                    + ", ".join(consequence_terms)
+                ),
+                violated_fields=["message_body"],
+            )
+
+        representation_terms = find_matching_policy_terms(
+            message_body,
+            truthfulness_policy["third_party_representation_terms"],
+        )
+
+        if (
+            representation_terms
+            and not hard_constraints["third_party_collector_representation_allowed"]
+        ):
+            return rejected(
+                "PR-3",
+                (
+                    "Proposed customer message contains prohibited "
+                    "collector-representation language: "
+                    + ", ".join(representation_terms)
+                ),
+                violated_fields=["message_body"],
+            )
+
+        debt_assertion_terms = find_matching_policy_terms(
+            message_body,
+            truthfulness_policy["debt_assertion_terms"],
+        )
+
+        if (
+            debt_assertion_terms
+            and hard_constraints["require_ledger_evidence_for_debt_assertion"]
+            and ledger_amount is None
+        ):
+            return rejected(
+                "PR-3",
+                (
+                    "Proposed customer message asserts a debt or payment fact "
+                    "without trusted ledger evidence."
+                ),
+                violated_fields=["message_body", "ledger_amount"],
+            )
+
+        if debt_assertion_terms and ledger_amount is not None:
+            asserted_amounts = extract_dollar_amounts(message_body)
+
+            if asserted_amounts and not any(
+                abs(amount - ledger_amount) < 0.01
+                for amount in asserted_amounts
+            ):
+                return rejected(
+                    "PR-3",
+                    (
+                        "Proposed customer message contains a debt amount "
+                        "that does not match trusted ledger evidence."
+                    ),
+                    violated_fields=["message_body", "ledger_amount"],
+                )
 
     # --------------------------------------------------------
     # PR-5.4 — disputed amount escalation threshold
