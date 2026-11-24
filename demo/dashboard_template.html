@@ -215,7 +215,7 @@ function pipeline(view) {
   const steps = [
     ["Intent", view.intent],
     ["Tools", (view.tools || []).length + " calls"],
-    ["Evidence", (view.tools || []).map((tool) => tool.tool).slice(0, 2).join(", ") || "—"],
+    ["Evidence", (view.tools || []).length ? `${(view.tools || []).length} records` : "—"],
     ["Risk", view.risk_band ? view.risk_band + " " + view.risk_score : "—"],
     ["Action", view.recommended_action],
     ["Policy", view.verdict],
@@ -303,7 +303,7 @@ function overview() {
   root.innerHTML = `
     <p class="kicker">Capstone walkthrough</p>
     <h2>Collections needs judgment. It also needs a harness.</h2>
-    <p class="lede">A roll-off customer can say “I’ll pay Friday,” “I already paid,” or “Can I make payments?” Cleartide classifies that reply, pulls the ledger, and recommends a next step. It cannot send, promise, or threaten anything the deterministic policy does not allow.</p>
+    <p class="lede">A roll-off customer can say “I’ll pay the invoice on Friday,” “I already paid this last week,” or “I can’t pay everything today. Can I make payments?” Cleartide classifies that reply, pulls the ledger, and recommends a next step. It cannot send, promise, or threaten anything the deterministic policy does not allow.</p>
     <div class="grid-3">
       <div class="card"><div class="kicker">01 The agent reasons</div><p>Intent selects the tools. The draft is written from retrieved evidence, not from the customer’s sentence alone.</p></div>
       <div class="card"><div class="kicker">02 Authority is separate</div><p>config/policy.yaml holds the limits. src/policy.py is the final authority. The recommender does not get a vote on consent, quiet hours, or threats.</p></div>
@@ -325,7 +325,7 @@ function overview() {
           <path d="M140 68 H170 M290 68 H320 M440 68 H470 M590 68 H620 M740 68 H790 M910 68 H960" stroke="#2BBBAD" stroke-width="3" fill="none"/>
         </g>
       </svg>
-      <p class="muted">Same diagram, in Mermaid, in docs/architecture.md. Human review sits on the policy branch: approve and execute, or stop and hand off.</p>
+      <p class="muted">This is the main path. Policy either allows the step or hands it to a person. Both end in the audit. The branching diagram is in docs/architecture.md.</p>
     </div>
     <div class="card" style="margin-top:16px;">
       <div class="kicker">Also in the one-command run</div>

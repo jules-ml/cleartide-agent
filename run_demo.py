@@ -116,7 +116,7 @@ def write_transcript(views: list[dict]) -> None:
                 f"- Verdict: {view['verdict']}",
                 f"- Rule: {', '.join(view.get('violated_constraints') or []) or 'none'}",
                 f"- Final: {view['final_status']} / {view['final_action']}",
-                f"- Executed: {view['executed']}",
+                f"- Executed: {'Yes' if view['executed'] else 'No'}",
                 f"- Decision id: {view['decision_id']}",
                 "",
             ]
