@@ -866,6 +866,49 @@ def attempt_audit_rewrite(
         conn.close()
 
 
+def _json_list_text(raw) -> str:
+    """Turn a stored JSON list into a short label. Empty means none."""
+
+    if raw in (None, "", "[]"):
+        return "none"
+
+    parsed = raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return raw
+
+    if isinstance(parsed, list):
+        return ", ".join(str(item) for item in parsed) or "none"
+
+    return str(parsed)
+
+
+def _summarize_proposed_action(raw) -> str:
+    """One readable line for the audit timeline, not the stored JSON."""
+
+    data = raw
+    if isinstance(raw, str):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return "An action was proposed."
+
+    if not isinstance(data, dict):
+        return "An action was proposed."
+
+    action = data.get("action_type") or "an action"
+    channel = data.get("target_channel")
+    channel_text = f" by {channel}" if channel else ""
+    draft = (data.get("message_body") or "").strip().replace("\n", " ")
+    if len(draft) > 160:
+        draft = draft[:157] + "..."
+    if draft:
+        return f"{action}{channel_text}. Draft: {draft}"
+    return f"{action}{channel_text}. No customer draft."
+
+
 def _audit_timeline(
     decision: dict,
     tool_calls: list[dict],
@@ -904,19 +947,20 @@ def _audit_timeline(
         steps.append(
             {
                 "step": "Action proposed",
-                "detail": decision.get("proposed_action"),
+                "detail": _summarize_proposed_action(
+                    decision.get("proposed_action")
+                ),
             }
         )
 
     if decision.get("validator_outcome"):
-        violated = decision.get("violated_constraint") or "[]"
         steps.append(
             {
                 "step": "Policy validated",
                 "detail": (
-                    f"{decision['validator_outcome']}; "
-                    f"constraints {violated}; "
-                    f"fields {decision.get('violated_fields')}"
+                    f"{decision['validator_outcome']}. "
+                    f"Rules: {_json_list_text(decision.get('violated_constraint'))}. "
+                    f"Fields: {_json_list_text(decision.get('violated_fields'))}."
                 ),
             }
         )
@@ -926,8 +970,7 @@ def _audit_timeline(
             {
                 "step": "Safe revision attempted",
                 "detail": (
-                    f"revision_count="
-                    f"{decision.get('revision_count')}"
+                    f"Revision count: {decision.get('revision_count')}."
                 ),
             }
         )

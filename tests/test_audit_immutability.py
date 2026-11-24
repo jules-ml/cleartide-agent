@@ -18,6 +18,11 @@ INVOICE_ID = 9088202
 def setup_audit_fixture():
     conn = get_connection()
     conn.execute(
+        "DELETE FROM audit_notes WHERE decision_id IN "
+        "(SELECT decision_id FROM agent_actions WHERE account_id = ?)",
+        (ACCOUNT_ID,),
+    )
+    conn.execute(
         "DELETE FROM tool_calls WHERE decision_id IN "
         "(SELECT decision_id FROM agent_actions WHERE account_id = ?)",
         (ACCOUNT_ID,),
@@ -100,6 +105,11 @@ def test_completed_audit_record_is_complete_and_immutable():
         assert decision["validator_outcome"] == "APPROVED"
         assert any(step["step"] == "Intent classified" for step in record["timeline"])
         assert any(step["step"] == "Policy validated" for step in record["timeline"])
+        proposed = next(
+            step for step in record["timeline"] if step["step"] == "Action proposed"
+        )
+        assert not proposed["detail"].startswith("{")
+        assert "SEND_MESSAGE" in proposed["detail"]
         assert record["tool_calls"]
 
         original_reason = decision["final_reason"]

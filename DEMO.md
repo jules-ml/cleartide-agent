@@ -12,6 +12,8 @@ python setup_database.py
 python seed_data.py
 ```
 
+`python` after activation is the virtualenv interpreter. Before activation this environment only has `python3`.
+
 `seed_data.py` loads the historical development fixture into `data/cleartide.db`. Do not run it again. Repeated inserts add duplicate payments, promises, and delivery rows. Tests and the class demo do not need a second seed.
 
 The class demo uses a different file, `data/demo_cleartide.db`, which the commands below rebuild.
@@ -36,7 +38,7 @@ python run_demo.py --serve
 
 `python run_demo.py` does the same without staying up. Use it to refresh `docs/backup/demo_report.html` and `docs/backup/transcript.md`.
 
-If the live server fails, open `docs/backup/demo_report.html` in a browser. It already contains the scenario results, the evaluation summary, and the traceability rows from the last generation. Disposition clicks are disabled there; the transcript states what the live click writes.
+If the live server fails, open `docs/backup/demo_report.html` in a browser. It already contains the scenario results, the evaluation summary, and the traceability rows from the last generation. Disposition clicks are disabled there. The transcript at `docs/backup/transcript.md` states what the live click writes. Screenshots of the seven views are in `docs/backup/screenshots/`.
 
 ## Five-minute walkthrough
 
@@ -53,7 +55,7 @@ If the live server fails, open `docs/backup/demo_report.html` in a browser. It a
 
 Scenario 4 (ledger does not confirm payment) and scenario 5 (SMS inside quiet hours, revised once to email) are in the same runner if there is a question. They print in the terminal transcript.
 
-## Reading that goes with the slides
+## Reading that goes with the walkthrough
 
 - `docs/architecture.md`
 - `docs/agentic_system.md` — agent versus a fixed script, and where policy comes from

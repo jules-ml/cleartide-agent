@@ -17,6 +17,11 @@ INVOICE_ID = 9088102
 def setup_step28_fixture():
     conn = get_connection()
     conn.execute(
+        "DELETE FROM audit_notes WHERE decision_id IN "
+        "(SELECT decision_id FROM agent_actions WHERE account_id = ?)",
+        (ACCOUNT_ID,),
+    )
+    conn.execute(
         "DELETE FROM tool_calls WHERE decision_id IN "
         "(SELECT decision_id FROM agent_actions WHERE account_id = ?)",
         (ACCOUNT_ID,),

@@ -27,7 +27,7 @@ What each box owns:
 | Tools | `src/tools.py`, `src/tool_guard.py` | Read exact relational rows. No tool may invent a balance. |
 | Recommendation | `src/agent.py` mock recommenders | Propose action, channel, and draft from the retrieved evidence. |
 | Policy | `src/policy.py`, `config/policy.yaml` | Approve, reject, or escalate. This is the authority. |
-| Revision | `revise_action_node` | One SMS-to-email correction. No other workaround. |
+| Revision | `src/agent.py` `revise_action_node` | One SMS-to-email correction. No other workaround. |
 | Human review | `src/review.py` | Record APPROVE, REJECT, MODIFY, or RESOLVED once. |
 | Audit | `src/audit.py` | Write the decision, then refuse to rewrite it. Append a note for the disposition. |
 
