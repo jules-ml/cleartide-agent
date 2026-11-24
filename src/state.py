@@ -25,6 +25,7 @@ class AgentState(TypedDict, total=False):
     invoice_id: int
     reply_text: str
     proposed_send_time: datetime
+    injected_message_body: str
 
     # ========================================================
     # DECISION AUDIT
@@ -95,6 +96,7 @@ class AgentState(TypedDict, total=False):
 
     revision_count: int
     revision_reason: str
+    policy_history: list
 
     # ========================================================
     # ESCALATION CONTROL

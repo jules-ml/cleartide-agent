@@ -1,0 +1,8 @@
+# Change log
+
+## Class-demo freeze
+
+- Kept FR-4.5 channel selection and added critical-risk and medium-risk selector tests.
+- Test fixtures that stored a September 2026 risk score now score at runtime, so FR-3.4 staleness does not silently change older graph tests.
+- Added a one-disposition human review queue. The disposition is appended as an audit note and is visible to the next decision. The finalized decision row cannot be rewritten through the application.
+- Added the local dashboard, the five class scenarios, the synthetic evaluation, the generated traceability matrix, and the offline backup.
