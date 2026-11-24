@@ -227,6 +227,18 @@ function pipeline(view) {
     return `<div class="step ${cls}"><b>${esc(name)}</b><span>${esc(value)}</span></div>`;
   }).join("")}</div>`;
 }
+function briefCard(view) {
+  const brief = view && view.reviewer_brief;
+  if (!brief || !brief.sections) return "";
+  const sections = brief.sections.map((section) =>
+    `<p><b>${esc(section.heading)}</b><br>${esc(section.body)}</p>`
+  ).join("");
+  return `<div class="card" style="margin-top:16px;">
+    <div class="kicker">Reviewer packet</div>
+    ${sections}
+    <p class="muted">Reading grade ${esc(brief.grade)} · limit ${esc(brief.grade_limit)}. Quotes are not scored. This grade is a proxy for a human reader.</p>
+  </div>`;
+}
 function policyCard(view) {
   const card = view && view.policy_card;
   if (!card) return "";
@@ -244,6 +256,7 @@ function decisionBody(view) {
     ? `<div id="review-anchor"></div>` : "";
   return `${pipeline(view)}
     ${reviewSlot}
+    ${briefCard(view)}
     <div class="grid-2">
       <div class="card">
         <div class="kicker">Customer</div>
@@ -482,6 +495,7 @@ function evaluationView() {
     <p class="kicker">Synthetic evaluation</p>
     <h2>${esc(summary.total_cases || "—")} labeled cases, run by the code.</h2>
     <p class="lede">These numbers score the deterministic development agent. They are not a claim about a live language model, and they are not business results.</p>
+    <p class="muted" id="readability-line"></p>
     <div class="metrics">${fields.map(([key, label]) => `<div class="card metric"><strong>${pct(summary[key])}</strong><span class="muted">${label}</span></div>`).join("")}</div>
     <div class="card">
       ${fields.map(([key, label]) => {
@@ -499,7 +513,12 @@ function evaluationView() {
       }).join("")}
       </tbody></table>
     </div>
-    <div class="cue">Point at the policy-violation rate. The target for this harness is zero.</div>`;
+    <div class="cue">Point at the policy-violation rate. The target for this harness is zero. The reading grade is a proxy, not a human rating.</div>`;
+  const reading = summary.reviewer_readability || {};
+  const line = document.getElementById("readability-line");
+  if (line && reading.packets) {
+    line.textContent = `Reviewer packets: ${reading.packets}. Reading grade mean ${reading.mean_grade}, max ${reading.max_grade}, limit ${reading.grade_limit}. Briefs over the limit: ${reading.briefs_failing_proxy}. Quotes are not scored.`;
+  }
 }
 function traceView() {
   const rows = PAYLOAD.traceability || [];

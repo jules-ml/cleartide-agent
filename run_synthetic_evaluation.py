@@ -49,6 +49,21 @@ def main():
         shown = "n/a" if value is None else f"{value * 100:.1f}%"
         print(f"{key}: {shown}")
     failures = [item for item in results if not item["decision_correct"]]
+    reading = summary.get("reviewer_readability") or {}
+    print(
+        "reviewer packets:",
+        reading.get("packets"),
+        "mean grade:",
+        reading.get("mean_grade"),
+        "max grade:",
+        reading.get("max_grade"),
+        "limit:",
+        reading.get("grade_limit"),
+        "failing briefs:",
+        reading.get("briefs_failing_proxy"),
+    )
+    for name, row in sorted((reading.get("by_archetype") or {}).items()):
+        print(f"  {name}: n={row['count']} mean={row['mean_grade']} max={row['max_grade']}")
     print(f"Decision mismatches: {len(failures)}")
     for item in failures[:12]:
         print(

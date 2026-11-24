@@ -9,6 +9,7 @@ from src.policy import (
     load_policy,
     resolve_debt_classification,
 )
+from src.reviewer_brief import build_reviewer_brief
 from src.schemas import EscalationPacket
 
 
@@ -336,6 +337,10 @@ def build_escalation_packet(
         final_reason=state[
             "final_reason"
         ],
+
+        reviewer_brief=build_reviewer_brief(
+            state
+        ),
     )
 
 

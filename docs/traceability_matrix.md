@@ -3,6 +3,14 @@
 Generated from `docs/requirements_traceability.csv` joined to a pytest JUnit run.
 A requirement passes here only when every test in its mapped test files passed.
 
+FR-6.4 does not use a human rater. The automated stand-ins are:
+five required plain-language sections (what the customer said, what the agent found, what it recommends, why it stopped, what the reviewer decides);
+every rule id and controlled enum in that brief is paired with a fixed plain-English gloss;
+the brief contains no JSON blobs or stack traces;
+the Flesch-Kincaid grade of the agent-written sentences is at or below 8.
+Grade 8 is the usual plain-language ceiling for a public notice, so an office reviewer does not need college prose.
+Customer quotes and drafts are kept verbatim and are left out of the grade.
+
 Pytest exit code: 0
 
 | Requirement | Matrix result | Passing tests | Failed tests |
@@ -40,7 +48,7 @@ Pytest exit code: 0
 | FR-6.1 | PASS | tests/test_step9.py::test_decision_and_tool_calls_are_linked<br>tests/test_step9.py::test_unsupported_intent_creates_escalation_packet<br>tests/test_step9.py::test_duplicate_tool_guard_blocks_third_call<br>tests/test_step9.py::test_total_tool_limit_blocks_next_call<br>tests/test_step9.py::test_sms_rejection_can_be_revised_to_email<br>tests/test_step9.py::test_quiet_hours_sms_rejection_can_be_revised_to_email<br>tests/test_step9.py::test_rejected_action_cannot_exceed_revision_limit<br>tests/test_step9.py::test_validator_node_forwards_proposed_send_time | — |
 | FR-6.2 | PASS | tests/test_step9.py::test_decision_and_tool_calls_are_linked<br>tests/test_step9.py::test_unsupported_intent_creates_escalation_packet<br>tests/test_step9.py::test_duplicate_tool_guard_blocks_third_call<br>tests/test_step9.py::test_total_tool_limit_blocks_next_call<br>tests/test_step9.py::test_sms_rejection_can_be_revised_to_email<br>tests/test_step9.py::test_quiet_hours_sms_rejection_can_be_revised_to_email<br>tests/test_step9.py::test_rejected_action_cannot_exceed_revision_limit<br>tests/test_step9.py::test_validator_node_forwards_proposed_send_time<br>tests/test_agent_step28.py::test_human_disposition_is_queued_and_retrieved_on_the_next_decision<br>tests/test_agent_step28.py::test_unknown_disposition_is_rejected | — |
 | FR-6.3 | PASS | tests/test_agent_step28.py::test_human_disposition_is_queued_and_retrieved_on_the_next_decision<br>tests/test_agent_step28.py::test_unknown_disposition_is_rejected | — |
-| FR-6.4 | NO AUTOMATED TEST | — | — |
+| FR-6.4 | PASS | tests/test_reviewer_readability.py::test_grade_limit_is_the_plain_language_ceiling<br>tests/test_reviewer_readability.py::test_easy_prose_is_under_the_limit_and_dense_prose_is_not<br>tests/test_reviewer_readability.py::test_proxy_rejects_a_json_blob_and_a_missing_section<br>tests/test_reviewer_readability.py::test_synthetic_escalation_packets_meet_readability_proxies | — |
 | FR-7.1 | PASS | tests/test_agent_step13.py::test_promise_to_pay_classification<br>tests/test_agent_step13.py::test_promise_to_pay_with_prior_broken_promise<br>tests/test_evaluation.py::test_golden_dataset_contains_all_intents<br>tests/test_evaluation.py::test_seed_cases_are_marked_not_human_reviewed<br>tests/test_evaluation.py::test_active_golden_cases_pass<br>tests/test_evaluation.py::test_traceability_matrix_has_required_structure | — |
 | FR-7.2 | PASS | tests/test_agent_step14.py::test_amount_dispute_classification<br>tests/test_agent_step14.py::test_prior_dispute_memory_fixture<br>tests/test_agent_step14.py::test_amount_dispute_recommender_logs_and_holds_when_prior_disputes_are_resolved<br>tests/test_agent_step14.py::test_amount_dispute_recommender_flags_existing_unresolved_dispute_for_human_review<br>tests/test_agent_step14.py::test_amount_dispute_evidence_node_retrieves_memory_account_and_risk<br>tests/test_agent_step14.py::test_amount_dispute_runs_end_to_end_through_graph<br>tests/test_agent_step14.py::test_amount_dispute_over_threshold_escalates_under_pr_5_4<br>tests/test_agent_step14.py::test_amount_dispute_ambiguous_amount_escalates_under_pr_5_4<br>tests/test_agent_step14.py::test_amount_dispute_missing_ledger_amount_escalates_under_pr_5_4 | — |
 | FR-7.3 | PASS | tests/test_agent_step19.py::test_payment_plan_retrieves_prior_escalation_disposition<br>tests/test_agent_step19.py::test_prior_escalation_tool_error_fails_closed | — |

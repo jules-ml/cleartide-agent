@@ -98,6 +98,12 @@ def present_decision(scenario: dict, result: dict) -> dict:
     channel = _enum(getattr(proposal, "target_channel", None))
     verdict = verdict_for(result)
     executed = result.get("final_status") == "APPROVED"
+    packet = result.get("escalation_packet")
+    reviewer_brief = None
+    if packet is not None:
+        reviewer_brief = getattr(packet, "reviewer_brief", None)
+        if reviewer_brief is None and isinstance(packet, dict):
+            reviewer_brief = packet.get("reviewer_brief")
 
     view = {
         "scenario_id": scenario["id"],
@@ -139,6 +145,7 @@ def present_decision(scenario: dict, result: dict) -> dict:
         "final_action": final_action,
         "final_reason": result.get("final_reason"),
         "executed": executed,
+        "reviewer_brief": reviewer_brief,
         "escalation_id": result.get("escalation_id"),
         "audit": _public_audit(audit),
     }

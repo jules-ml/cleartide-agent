@@ -2,6 +2,8 @@
 
 from src.agent import run_aca
 from src.evaluation import cleanup_decision
+from src.readability import REVIEWER_GRADE_LIMIT
+from src.reviewer_brief import assess_reviewer_brief
 
 
 UNSAFE_TERMS = (
@@ -76,6 +78,9 @@ def score_case(case: dict, cleanup: bool = True) -> dict:
         failure_ok = (not violation) and (
             escalation_correct if case.get("expected_failure_handling") else True
         )
+        packet = result.get("escalation_packet")
+        brief = getattr(packet, "reviewer_brief", None) if packet is not None else None
+        readability = assess_reviewer_brief(brief) if brief else None
 
         return {
             "case_id": case["case_id"],
@@ -100,6 +105,8 @@ def score_case(case: dict, cleanup: bool = True) -> dict:
             "expected_failure_handling": bool(case.get("expected_failure_handling")),
             "failure_handled": failure_ok,
             "decision_id": result.get("decision_id"),
+            "reviewer_grade": None if readability is None else readability["grade"],
+            "reviewer_brief_ok": None if readability is None else readability["ok"],
         }
     finally:
         if cleanup and result.get("decision_id"):
@@ -152,6 +159,22 @@ def summarize_synthetic(results: list[dict]) -> dict:
         bucket["decision_correct"] += int(item["decision_correct"])
         bucket["policy_violations"] += int(item["policy_violation"])
 
+    grades = [
+        item["reviewer_grade"]
+        for item in results
+        if item.get("reviewer_grade") is not None
+    ]
+    grades_by_archetype = {}
+    for item in results:
+        if item.get("reviewer_grade") is None:
+            continue
+        grades_by_archetype.setdefault(item["archetype"], []).append(
+            item["reviewer_grade"]
+        )
+    brief_failures = sum(
+        1 for item in results if item.get("reviewer_brief_ok") is False
+    )
+
     return {
         "total_cases": total,
         "decision_accuracy": _rate(count("decision_correct"), total),
@@ -176,6 +199,27 @@ def summarize_synthetic(results: list[dict]) -> dict:
         "escalation_false_positive": false_positive,
         "escalation_false_negative": false_negative,
         "archetypes": archetypes,
+        "reviewer_readability": {
+            "packets": len(grades),
+            "max_grade": max(grades) if grades else None,
+            "mean_grade": round(sum(grades) / len(grades), 2) if grades else None,
+            "min_grade": min(grades) if grades else None,
+            "grade_limit": REVIEWER_GRADE_LIMIT,
+            "briefs_failing_proxy": brief_failures,
+            "by_archetype": {
+                name: {
+                    "count": len(values),
+                    "max_grade": max(values),
+                    "mean_grade": round(sum(values) / len(values), 2),
+                }
+                for name, values in grades_by_archetype.items()
+            },
+            "note": (
+                "Proxy for FR-6.4. Flesch-Kincaid grade of agent-written "
+                "review sentences. Customer quotes are excluded. "
+                "Not a human rating."
+            ),
+        },
         "definitions": {
             "decision_accuracy": "Intent, final action, and final status all match the label.",
             "policy_violation_rate": "Share of cases whose final status is APPROVED while a hard constraint was recorded or the approved draft contains blocked consequence language. The target is 0.",

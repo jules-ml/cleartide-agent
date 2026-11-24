@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-11-24T23:09:01.668500+00:00",
+  "generated_at_utc": "2026-11-24T23:22:04.356310+00:00",
   "pytest_exit_code": 0,
   "requirements": [
     {
@@ -781,10 +781,15 @@
     {
       "requirement_id": "FR-6.4",
       "requirement_summary": "Packet must be legible to nontechnical reviewer",
-      "implementation_artifact": "src/audit.py",
-      "status": "PARTIAL",
-      "result": "NO AUTOMATED TEST",
-      "passed_tests": [],
+      "implementation_artifact": "src/audit.py; src/reviewer_brief.py; src/readability.py",
+      "status": "IMPLEMENTED",
+      "result": "PASS",
+      "passed_tests": [
+        "tests/test_reviewer_readability.py::test_grade_limit_is_the_plain_language_ceiling",
+        "tests/test_reviewer_readability.py::test_easy_prose_is_under_the_limit_and_dense_prose_is_not",
+        "tests/test_reviewer_readability.py::test_proxy_rejects_a_json_blob_and_a_missing_section",
+        "tests/test_reviewer_readability.py::test_synthetic_escalation_packets_meet_readability_proxies"
+      ],
       "failed_tests": []
     },
     {
@@ -1455,10 +1460,15 @@
     {
       "requirement_id": "GV-3",
       "requirement_summary": "Escalation packet is suitable for nontechnical review",
-      "implementation_artifact": "src/audit.py; src/schemas.py",
-      "status": "PARTIAL",
-      "result": "NO AUTOMATED TEST",
-      "passed_tests": [],
+      "implementation_artifact": "src/audit.py; src/reviewer_brief.py; src/readability.py",
+      "status": "IMPLEMENTED",
+      "result": "PASS",
+      "passed_tests": [
+        "tests/test_reviewer_readability.py::test_grade_limit_is_the_plain_language_ceiling",
+        "tests/test_reviewer_readability.py::test_easy_prose_is_under_the_limit_and_dense_prose_is_not",
+        "tests/test_reviewer_readability.py::test_proxy_rejects_a_json_blob_and_a_missing_section",
+        "tests/test_reviewer_readability.py::test_synthetic_escalation_packets_meet_readability_proxies"
+      ],
       "failed_tests": []
     },
     {
