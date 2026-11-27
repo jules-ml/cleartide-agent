@@ -8,13 +8,13 @@ from streamlit.testing.v1 import AppTest
 
 APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
 VIEWS = (
-    "01 Overview",
-    "02 Autonomous",
-    "03 Human review",
-    "04 Policy block",
-    "05 Audit trail",
-    "06 Evaluation",
-    "07 Traceability",
+    "Live Agent Console",
+    "Reviewer Inbox",
+    "Audit Trail",
+    "Evaluation",
+    "Traceability",
+    "Policy",
+    "Guided walkthrough",
 )
 
 
@@ -35,7 +35,7 @@ def test_streamlit_app_views_and_reviewer_flow(tmp_path, monkeypatch):
             app.sidebar.radio(key="walkthrough").set_value(view).run()
             _assert_clean(app)
 
-        app.sidebar.radio(key="walkthrough").set_value("03 Human review").run()
+        app.sidebar.radio(key="walkthrough").set_value("Guided walkthrough").run()
         app.button(key="run-review").click().run()
         _assert_clean(app)
         page = " ".join(block.value for block in app.markdown)
@@ -52,12 +52,69 @@ def test_streamlit_app_views_and_reviewer_flow(tmp_path, monkeypatch):
         page = " ".join(block.value for block in app.markdown)
         assert "Office approved a callback." in page
 
-        app.sidebar.radio(key="walkthrough").set_value("06 Evaluation").run()
+        app.sidebar.radio(key="walkthrough").set_value("Evaluation").run()
         _assert_clean(app)
         caption = " ".join(
             block.value for block in list(app.markdown) + list(app.info)
         )
         assert "own labels" in caption
+    finally:
+        if previous is None:
+            os.environ.pop("CLEARTIDE_DB_PATH", None)
+        else:
+            os.environ["CLEARTIDE_DB_PATH"] = previous
+        from src.database import forget_schema_cache
+
+        forget_schema_cache()
+
+
+def _page_text(app: AppTest) -> str:
+    chunks = []
+    for group in (app.markdown, app.success, app.info, app.caption, app.warning, app.error):
+        chunks.extend(block.value for block in group)
+    return " ".join(chunks)
+
+
+def test_live_console_outcomes(tmp_path, monkeypatch):
+    database = tmp_path / "console.db"
+    monkeypatch.setenv("CLEARTIDE_STREAMLIT_DB", str(database))
+    monkeypatch.setenv("ACA_STAGE_DELAY", "0")
+    previous = os.environ.pop("CLEARTIDE_DB_PATH", None)
+    try:
+        app = AppTest.from_file(str(APP), default_timeout=90)
+        app.run()
+        _assert_clean(app)
+        assert app.sidebar.radio(key="walkthrough").value == "Live Agent Console"
+
+        app.button(key="moment-promise").click().run()
+        _assert_clean(app)
+        assert "AUTO-APPROVED" in _page_text(app)
+
+        app.button(key="moment-plan").click().run()
+        _assert_clean(app)
+        assert "ESCALATED" in _page_text(app)
+
+        app.sidebar.radio(key="walkthrough").set_value("Reviewer Inbox").run()
+        _assert_clean(app)
+        approve = next(
+            button
+            for button in app.button
+            if button.key and button.key.startswith("inbox-") and button.key.endswith("-APPROVE")
+        )
+        approve.click().run()
+        _assert_clean(app)
+
+        app.sidebar.radio(key="walkthrough").set_value("Live Agent Console").run()
+        app.button(key="moment-block").click().run()
+        _assert_clean(app)
+        assert "BLOCKED" in _page_text(app)
+        assert "PR-3" in _page_text(app)
+
+        app.text_area(key="console-reply").set_value("Hello, just checking in.").run()
+        app.button(key="run-agent").click().run()
+        _assert_clean(app)
+        assert "UNCLEAR" in _page_text(app)
+        assert "ESCALATED" in _page_text(app)
     finally:
         if previous is None:
             os.environ.pop("CLEARTIDE_DB_PATH", None)

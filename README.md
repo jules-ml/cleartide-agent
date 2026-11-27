@@ -28,7 +28,7 @@ The local dashboard is at <http://127.0.0.1:8765>. Keys 1 through 7 switch views
 
 ## Live demo (Streamlit)
 
-Placeholder until the Cloud app is deployed: <https://cleartide-aca.streamlit.app>
+The deployed app opens on the live book, not a slide: <https://cleartide-aca.streamlit.app>
 
 Deploy from [jules-ml/cleartide-agent](https://github.com/jules-ml/cleartide-agent). Main file: `streamlit_app.py`. Choose Python 3.12. The app builds its own demo database on startup. It does not use secrets or an API key. `runtime.txt` pins 3.12 for hosts that still read that file; the Streamlit deploy dialog is the setting that matters.
 

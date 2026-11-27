@@ -60,18 +60,19 @@ streamlit run streamlit_app.py --server.headless true
 
 ## Five-minute walkthrough
 
-| Time | View | What to say |
-|---|---|---|
-| 0:00–0:30 | 1 Overview | Roll-off invoices age while the trucks keep moving. Cleartide is a governed agent for that follow-up, not an unrestricted chatbot. |
-| 0:30–1:00 | 1 Overview | Point at the path: intent, tools, risk, recommendation, policy, audit. The agent recommends. The policy file authorizes. |
-| 1:00–2:00 | 2 Autonomous | Run scenario 1. “I’ll pay the invoice on Friday.” Intent, promise history, low risk, email draft, verdict APPROVE, audit timeline. |
-| 2:00–2:40 | 3 Human review | Run scenario 2. The agent proposes plan terms. Medium risk has `autonomous_allowed: false` in `config/policy.yaml`. Verdict ESCALATE. Click RESOLVED, show the audit note, run the account again, and show the disposition in the rationale. The decision row itself is not edited. |
-| 2:40–3:20 | 4 Policy block | Run scenario 3. The injected draft says “legal action.” Show PR-3, the field `message_body`, and the term list copied from `config/policy.yaml`. The message is not sent. |
-| 3:20–4:00 | 5 Audit, then 6 Evaluation | Open a decision and attempt a rewrite. Then show the charts. Policy-violation rate is the number to point at. These are harness metrics for the deterministic agent, not revenue. |
-| 4:00–4:30 | Business | Use `docs/business_value.md`. Cans on site, aging invoices, first-party voice. No invented dollar results. |
-| 4:30–5:00 | 7 Traceability, then limitations | A requirement names code and a test that passed. Then one limitation: the brain is a deterministic stand-in, and the policy layer is what stays when a model is added. |
+Open the Streamlit app. The first screen is the live book, not a slide.
 
-Scenario 4 (ledger does not confirm payment) and scenario 5 (SMS inside quiet hours, revised once to email) are in the same runner if there is a question. They print in the terminal transcript.
+| Time | What to do |
+|---|---|
+| 0:00–0:40 | Point at the five open accounts, the balances, and the risk gauge. The header counts are from the database and start at zero. |
+| 0:40–1:20 | Click **Promise to pay → approve** on Northline Roll-Off. Watch Intent, Tools, Risk, Recommend, Policy, and Audit light up. The badge is AUTO-APPROVED. The card turns teal and a promise is noted. |
+| 1:20–2:20 | Click **Payment plan → escalate** on Coastal Container Service. The badge is ESCALATED under PR-5.2. Open **Reviewer Inbox**, read the brief, and record APPROVE or RESOLVED with a note. The decision row is not edited. |
+| 2:20–3:10 | Click **Threat language → block**. The draft says “legal action.” The badge is BLOCKED. PR-3 fails. Nothing is sent. |
+| 3:10–3:50 | If there is time, click **Already paid → ledger** and **Quiet hours → revise**. The ledger tool shows the payment was not found. Quiet hours revises SMS to email and then approves. |
+| 3:50–4:20 | Open **Audit Trail**. Newest decision first. Attempt a rewrite and show the refusal. |
+| 4:20–5:00 | Open **Policy**, then **Evaluation**. The policy file is the authority. The charts are measured against the agent’s own labels, not revenue. |
+
+The same five cases are also on **Guided walkthrough** if a button is easier than the console. Free text still works: an unclear sentence escalates instead of crashing.
 
 ## Reading that goes with the walkthrough
 

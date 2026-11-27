@@ -29,6 +29,7 @@ openai==3.8.0
 orjson==3.12.0
 ormsgpack==1.12.2
 packaging==26.3
+plotly==6.9.0
 pandas==3.0.5
 pluggy==1.6.0
 pydantic==2.13.5
