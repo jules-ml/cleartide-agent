@@ -75,6 +75,29 @@ def test_selector_prefers_email_for_low_risk_when_responsiveness_is_equal():
     assert "prefers email for low-risk accounts" in rationale
 
 
+def test_selector_prefers_human_followup_for_critical_risk():
+    state = make_state(
+        risk_band="CRITICAL",
+        communications=[
+            {"direction": "INBOUND", "channel": "SMS"},
+        ],
+    )
+
+    channel, rationale = select_outbound_channel(state)
+
+    assert channel == Channel.HUMAN_CALL_FLAG
+    assert "CRITICAL" in rationale
+
+
+def test_selector_uses_email_when_responsiveness_is_equal_and_risk_is_medium():
+    state = make_state(risk_band="MEDIUM")
+
+    channel, rationale = select_outbound_channel(state)
+
+    assert channel == Channel.EMAIL
+    assert "fallback" in rationale
+
+
 def test_selector_prefers_human_followup_for_high_risk():
     state = make_state(
         risk_band="HIGH",

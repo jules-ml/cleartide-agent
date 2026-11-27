@@ -126,32 +126,42 @@ def cleanup_decision(
 
     conn = get_connection()
 
-    conn.execute(
-        """
-        DELETE FROM escalations
-        WHERE decision_id = ?
-        """,
-        (decision_id,),
-    )
+    try:
+        conn.execute(
+            """
+            DELETE FROM audit_notes
+            WHERE decision_id = ?
+            """,
+            (decision_id,),
+        )
 
-    conn.execute(
-        """
-        DELETE FROM tool_calls
-        WHERE decision_id = ?
-        """,
-        (decision_id,),
-    )
+        conn.execute(
+            """
+            DELETE FROM escalations
+            WHERE decision_id = ?
+            """,
+            (decision_id,),
+        )
 
-    conn.execute(
-        """
-        DELETE FROM agent_actions
-        WHERE decision_id = ?
-        """,
-        (decision_id,),
-    )
+        conn.execute(
+            """
+            DELETE FROM tool_calls
+            WHERE decision_id = ?
+            """,
+            (decision_id,),
+        )
 
-    conn.commit()
-    conn.close()
+        conn.execute(
+            """
+            DELETE FROM agent_actions
+            WHERE decision_id = ?
+            """,
+            (decision_id,),
+        )
+
+        conn.commit()
+    finally:
+        conn.close()
 
 
 # ============================================================

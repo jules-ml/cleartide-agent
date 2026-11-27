@@ -823,6 +823,9 @@ def get_prior_escalations(
             risk_score,
             risk_band,
             human_disposition,
+            disposition_code,
+            reviewer_note,
+            reviewed_by,
             status,
             created_at,
             resolved_at

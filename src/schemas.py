@@ -319,6 +319,14 @@ class EscalationPacket(BaseModel):
 
     final_reason: str
 
+    reviewer_brief: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Plain-language sections for a nontechnical reviewer. "
+            "Technical tool payloads stay in the other packet fields."
+        ),
+    )
+
 
 # ============================================================
 # FINAL AGENT ACTION

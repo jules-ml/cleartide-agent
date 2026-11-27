@@ -1,3 +1,4 @@
+from tests.fresh import fresh_scored_at
 from src.agent import run_aca
 from src.database import get_connection
 from src.evaluation import cleanup_decision
@@ -83,7 +84,7 @@ def setup_step20_fixture():
             "LOW",
             "step20-test",
             '["step20 fixture"]',
-            "2026-09-01 12:00:00",
+            fresh_scored_at(),
         ),
     )
 

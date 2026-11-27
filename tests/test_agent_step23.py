@@ -1,6 +1,7 @@
 import json
 
 import src.agent as agent
+from tests.fresh import fresh_scored_at
 
 from src.database import get_connection
 from src.evaluation import cleanup_decision
@@ -93,7 +94,7 @@ def setup_step23_fixture():
             "LOW",
             "step23-test",
             '["step23 fixture"]',
-            "2026-09-01 12:00:00",
+            fresh_scored_at(),
         ),
     )
 

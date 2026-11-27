@@ -1,10 +1,15 @@
 import json
 
 from src.database import get_connection
+
+
+class AuditImmutableError(RuntimeError):
+    """A finalized decision record was submitted for rewrite."""
 from src.policy import (
     load_policy,
     resolve_debt_classification,
 )
+from src.reviewer_brief import build_reviewer_brief
 from src.schemas import EscalationPacket
 
 
@@ -332,6 +337,10 @@ def build_escalation_packet(
         final_reason=state[
             "final_reason"
         ],
+
+        reviewer_brief=build_reviewer_brief(
+            state
+        ),
     )
 
 
@@ -563,6 +572,28 @@ def finalize_decision(
 
     conn = get_connection()
 
+    existing_audit = conn.execute(
+        """
+        SELECT audit_status
+        FROM agent_actions
+        WHERE decision_id = ?
+        """,
+        (
+            state["decision_id"],
+        ),
+    ).fetchone()
+
+    if (
+        existing_audit is not None
+        and existing_audit["audit_status"] == "COMPLETED"
+    ):
+        conn.close()
+        raise AuditImmutableError(
+            "Decision "
+            f"{state['decision_id']} is finalized. "
+            "Completed audit records cannot be rewritten."
+        )
+
     debt_classification = (
         account_data.get(
             "debt_type"
@@ -787,3 +818,284 @@ def get_escalation_packet(
     return json.loads(
         row["packet_json"]
     )
+
+
+def attempt_audit_rewrite(
+    decision_id: int,
+    updates: dict,
+) -> None:
+    """
+    Application path for changing a stored decision.
+
+    Finalized records are evidence. This function refuses the
+    rewrite and does not apply ``updates``.
+    """
+
+    del updates
+
+    conn = get_connection()
+
+    try:
+        row = conn.execute(
+            """
+            SELECT audit_status
+            FROM agent_actions
+            WHERE decision_id = ?
+            """,
+            (decision_id,),
+        ).fetchone()
+
+        if row is None:
+            raise AuditImmutableError(
+                f"Decision {decision_id} does not exist."
+            )
+
+        if row["audit_status"] == "COMPLETED":
+            raise AuditImmutableError(
+                f"Decision {decision_id} is finalized. "
+                "Completed audit records cannot be rewritten "
+                "through the application."
+            )
+
+        raise AuditImmutableError(
+            "In-progress audit records are updated only by "
+            "the decision workflow."
+        )
+
+    finally:
+        conn.close()
+
+
+def _json_list_text(raw) -> str:
+    """Turn a stored JSON list into a short label. Empty means none."""
+
+    if raw in (None, "", "[]"):
+        return "none"
+
+    parsed = raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return raw
+
+    if isinstance(parsed, list):
+        return ", ".join(str(item) for item in parsed) or "none"
+
+    return str(parsed)
+
+
+def _summarize_proposed_action(raw) -> str:
+    """One readable line for the audit timeline, not the stored JSON."""
+
+    data = raw
+    if isinstance(raw, str):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return "An action was proposed."
+
+    if not isinstance(data, dict):
+        return "An action was proposed."
+
+    action = data.get("action_type") or "an action"
+    channel = data.get("target_channel")
+    channel_text = f" by {channel}" if channel else ""
+    draft = (data.get("message_body") or "").strip().replace("\n", " ")
+    if len(draft) > 160:
+        draft = draft[:157] + "..."
+    if draft:
+        return f"{action}{channel_text}. Draft: {draft}"
+    return f"{action}{channel_text}. No customer draft."
+
+
+def _audit_timeline(
+    decision: dict,
+    tool_calls: list[dict],
+    escalation: dict | None,
+) -> list[dict]:
+    steps = [
+        {
+            "step": "Decision started",
+            "detail": decision.get("created_at") or "Record opened",
+        }
+    ]
+
+    if decision.get("primary_intent"):
+        steps.append(
+            {
+                "step": "Intent classified",
+                "detail": (
+                    f"{decision['primary_intent']} "
+                    f"(confidence {decision.get('confidence')})"
+                ),
+            }
+        )
+
+    for tool in tool_calls:
+        steps.append(
+            {
+                "step": "Evidence retrieved",
+                "detail": (
+                    f"{tool.get('tool_name')} "
+                    f"[{tool.get('status')}]"
+                ),
+            }
+        )
+
+    if decision.get("proposed_action"):
+        steps.append(
+            {
+                "step": "Action proposed",
+                "detail": _summarize_proposed_action(
+                    decision.get("proposed_action")
+                ),
+            }
+        )
+
+    if decision.get("validator_outcome"):
+        steps.append(
+            {
+                "step": "Policy validated",
+                "detail": (
+                    f"{decision['validator_outcome']}. "
+                    f"Rules: {_json_list_text(decision.get('violated_constraint'))}. "
+                    f"Fields: {_json_list_text(decision.get('violated_fields'))}."
+                ),
+            }
+        )
+
+    if int(decision.get("revision_count") or 0) > 0:
+        steps.append(
+            {
+                "step": "Safe revision attempted",
+                "detail": (
+                    f"Revision count: {decision.get('revision_count')}."
+                ),
+            }
+        )
+
+    steps.append(
+        {
+            "step": "Decision finalized",
+            "detail": (
+                f"{decision.get('audit_status')}: "
+                f"{decision.get('final_action')} — "
+                f"{decision.get('final_reason')}"
+            ),
+        }
+    )
+
+    if escalation is not None:
+        steps.append(
+            {
+                "step": "Human handoff",
+                "detail": (
+                    f"escalation {escalation.get('escalation_id')} "
+                    f"status {escalation.get('status')}"
+                ),
+            }
+        )
+
+        if escalation.get("human_disposition"):
+            steps.append(
+                {
+                    "step": "Human disposition recorded",
+                    "detail": escalation.get("human_disposition"),
+                }
+            )
+
+    for note in decision.get("_audit_notes") or []:
+        steps.append(
+            {
+                "step": "Audit note appended",
+                "detail": (
+                    f"{note.get('event_type')}: {note.get('detail')}"
+                ),
+            }
+        )
+
+    return steps
+
+
+def get_complete_audit_record(
+    decision_id: int,
+) -> dict | None:
+    """
+    One explainable record for a decision: the decision row,
+    every tool call, any escalation, and a readable timeline.
+    """
+
+    decision = get_decision_record(decision_id)
+
+    if decision is None:
+        return None
+
+    conn = get_connection()
+
+    tool_rows = conn.execute(
+        """
+        SELECT *
+        FROM tool_calls
+        WHERE decision_id = ?
+        ORDER BY tool_call_id
+        """,
+        (decision_id,),
+    ).fetchall()
+
+    escalation_row = conn.execute(
+        """
+        SELECT *
+        FROM escalations
+        WHERE decision_id = ?
+        ORDER BY escalation_id DESC
+        LIMIT 1
+        """,
+        (decision_id,),
+    ).fetchone()
+
+    note_rows = conn.execute(
+        """
+        SELECT note_id, decision_id, escalation_id, event_type, detail, created_at
+        FROM audit_notes
+        WHERE decision_id = ?
+        ORDER BY note_id
+        """,
+        (decision_id,),
+    ).fetchall()
+
+    conn.close()
+
+    tool_calls = [dict(row) for row in tool_rows]
+
+    escalation = dict(escalation_row) if escalation_row else None
+    notes = [dict(row) for row in note_rows]
+    decision["_audit_notes"] = notes
+
+    if escalation and escalation.get("packet_json"):
+        try:
+            escalation["packet"] = json.loads(escalation["packet_json"])
+        except json.JSONDecodeError:
+            escalation["packet"] = None
+
+    required = (
+        decision.get("audit_status") == "COMPLETED"
+        and decision.get("primary_intent")
+        and decision.get("final_action")
+        and decision.get("policy_version")
+        and decision.get("debt_classification")
+    )
+
+    return {
+        "decision_id": decision_id,
+        "decision": decision,
+        "tool_calls": tool_calls,
+        "audit_notes": notes,
+        "escalation": escalation,
+        "timeline": _audit_timeline(
+            decision,
+            tool_calls,
+            escalation,
+        ),
+        "complete": bool(required),
+    }

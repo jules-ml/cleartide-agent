@@ -146,6 +146,9 @@ def mock_classify_reply(
         "split the balance",
         "installments",
         "monthly payments",
+        "make payments",
+        "can't pay everything",
+        "cannot pay everything",
         "two payments",
         "three payments",
         "four payments",
@@ -162,7 +165,11 @@ def mock_classify_reply(
 
     promise_terms = [
         "will pay",
+        "i'll pay",
+        "i will pay",
         "pay friday",
+        "pay on friday",
+        "pay the invoice on friday",
         "pay monday",
         "pay tomorrow",
         "send payment friday",
@@ -1114,6 +1121,19 @@ def mock_recommend_promise_to_pay_action(
         select_outbound_channel(state)
     )
 
+    _, prior_dispositions = (
+        get_prior_escalation_memory_context(
+            state
+        )
+    )
+
+    disposition_context = (
+        " Prior resolved human disposition: "
+        f"{prior_dispositions[0]}."
+        if prior_dispositions
+        else ""
+    )
+
     if (
         selected_channel
         == Channel.HUMAN_CALL_FLAG
@@ -1132,6 +1152,7 @@ def mock_recommend_promise_to_pay_action(
             rationale=(
                 "The customer made a promise to pay. "
                 + channel_rationale
+                + disposition_context
                 + " Human follow-up is required."
             ),
         )
@@ -1158,6 +1179,7 @@ def mock_recommend_promise_to_pay_action(
             "attention, and the current risk band is "
             f"{risk_band_value}. "
             + channel_rationale
+            + disposition_context
         ),
     )
 
@@ -3844,6 +3866,24 @@ def propose_action_node(
         ),
     )
 
+    injected_message = state.get(
+        "injected_message_body"
+    )
+
+    if injected_message:
+        proposal = proposal.model_copy(
+            update={
+                "message_body": injected_message,
+                "rationale": (
+                    proposal.rationale
+                    + " Demonstration injection replaced the "
+                    "customer-facing draft so the deterministic "
+                    "validator can be observed. The validator "
+                    "still has final authority."
+                ),
+            }
+        )
+
     return {
         "proposed_action":
             proposal,
@@ -4216,6 +4256,12 @@ def revise_action_node(
                     "corrected by switching "
                     "to permitted EMAIL."
                 ),
+
+            "policy_history":
+                _policy_history(
+                    state,
+                    validation,
+                ),
         }
 
     # ========================================================
@@ -4225,6 +4271,12 @@ def revise_action_node(
     return {
         "revision_count":
             new_revision_count,
+
+        "policy_history":
+            _policy_history(
+                state,
+                validation,
+            ),
 
         "forced_escalation_reason":
             (
@@ -4237,6 +4289,43 @@ def revise_action_node(
                 )
             ),
     }
+
+
+def _policy_history(
+    state: AgentState,
+    validation,
+) -> list:
+    """Keep rejected validator results after a later revalidation."""
+
+    history = list(
+        state.get(
+            "policy_history",
+            [],
+        )
+        or []
+    )
+
+    history.append(
+        {
+            "outcome":
+                validation.outcome.value,
+
+            "constraints":
+                list(
+                    validation.violated_constraints
+                ),
+
+            "fields":
+                list(
+                    validation.violated_fields
+                ),
+
+            "explanation":
+                validation.explanation,
+        }
+    )
+
+    return history
 
 
 # ============================================================
@@ -4750,6 +4839,7 @@ def run_aca(
     invoice_id: int,
     reply_text: str,
     proposed_send_time: Optional[datetime] = None,
+    injected_message_body: Optional[str] = None,
 ):
 
     initial_state: AgentState = {
@@ -4765,6 +4855,11 @@ def run_aca(
         "proposed_send_time":
             proposed_send_time,
     }
+
+    if injected_message_body:
+        initial_state[
+            "injected_message_body"
+        ] = injected_message_body
 
     return graph.invoke(
         initial_state

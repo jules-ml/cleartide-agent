@@ -1,4 +1,5 @@
 import src.agent as agent
+from tests.fresh import fresh_scored_at
 
 from src.database import get_connection
 from src.evaluation import cleanup_decision
@@ -71,7 +72,7 @@ def setup_step26_fixture():
             "LOW",
             "step26-test",
             '["step26 fixture"]',
-            "2026-09-01 12:00:00",
+            fresh_scored_at(),
         ),
     )
 

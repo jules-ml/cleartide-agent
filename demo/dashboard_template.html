@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cleartide ACA — class demo</title>
+<style>
+  :root {
+    --navy: #0b1f33;
+    --navy-2: #163257;
+    --ink: #0e2740;
+    --muted: #5a7089;
+    --line: #d5e0e4;
+    --paper: #f1f6f7;
+    --card: #ffffff;
+    --teal: #2bbbad;
+    --teal-deep: #1e8f86;
+    --amber: #9a5b12;
+    --red: #8d2f39;
+    --green: #0e7a4b;
+    --shadow: 0 16px 40px rgba(11, 31, 51, 0.08);
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 18px; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 400px at 100% -10%, rgba(43, 187, 173, 0.18), transparent 50%),
+      var(--paper);
+    font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+    line-height: 1.45;
+  }
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 22px 36px 18px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .brand { display: flex; gap: 16px; align-items: center; }
+  .brand h1 { margin: 0; font-size: 1.7rem; letter-spacing: -0.03em; }
+  .brand p { margin: 2px 0 0; color: #a9c2c9; font-size: 0.95rem; }
+  nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  nav button {
+    border: 1px solid rgba(255,255,255,0.16);
+    background: transparent;
+    color: white;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 0.92rem;
+    cursor: pointer;
+  }
+  nav button.active { background: var(--teal); color: #06251f; border-color: var(--teal); font-weight: 700; }
+  main { padding: 28px 36px 72px; max-width: 1440px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+  h2 { font-size: 2rem; letter-spacing: -0.03em; margin: 0 0 8px; }
+  .lede { font-size: 1.2rem; max-width: 980px; margin: 0 0 22px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-2 { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+  }
+  .kicker { color: var(--teal-deep); font-weight: 700; letter-spacing: 0.08em; font-size: 0.78rem; text-transform: uppercase; }
+  .muted { color: var(--muted); }
+  .pipeline { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin: 8px 0 18px; }
+  .step {
+    background: #e6eef0;
+    border-radius: 14px;
+    padding: 10px 10px 12px;
+    min-height: 108px;
+  }
+  .step b { display: block; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .step span { display: block; margin-top: 6px; font-weight: 700; font-size: 0.95rem; }
+  .step.go { background: #e7f8f6; }
+  .step.stop { background: #fde8e4; }
+  .step.hold { background: #fff4e5; }
+  .stamp {
+    display: inline-block;
+    border-radius: 12px;
+    padding: 8px 14px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+  }
+  .stamp.ok { background: #e5f6ee; color: var(--green); }
+  .stamp.warn { background: #fff4e5; color: var(--amber); }
+  .stamp.bad { background: #fde8e4; color: var(--red); }
+  .mono, pre {
+    font-family: "IBM Plex Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.86rem;
+    white-space: pre-wrap;
+    background: #0b1f33;
+    color: #e7f6f4;
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  button.action, .pills button {
+    font: inherit;
+    font-weight: 700;
+    border: 0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    background: var(--navy);
+    color: white;
+  }
+  button.action.secondary { background: var(--teal); color: #06251f; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pills button { background: white; color: var(--ink); border: 1px solid var(--line); }
+  ol.timeline { margin: 8px 0 0; padding-left: 22px; }
+  ol.timeline li { margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 14px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 0.92rem; }
+  th { background: var(--navy); color: white; }
+  .bar { height: 22px; background: #e6eef0; border-radius: 999px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--teal-deep), var(--teal)); }
+  .metric { min-width: 160px; }
+  .metric strong { display: block; font-size: 1.8rem; letter-spacing: -0.03em; }
+  .metrics { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .cue { margin-top: 18px; padding: 12px 14px; border-left: 4px solid var(--teal); background: white; border-radius: 0 12px 12px 0; }
+  svg.arch { width: 100%; height: auto; }
+  @media (max-width: 1100px) {
+    .grid-3, .grid-2, .pipeline { grid-template-columns: 1fr; }
+    main, header { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="64" height="44" viewBox="0 0 240 160" aria-hidden="true">
+      <rect width="240" height="160" rx="28" fill="#163257"/>
+      <path d="M40,118 C64,66 84,66 104,94 C120,114 136,110 152,94 C168,74 180,58 192,48" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"/>
+      <circle cx="192" cy="48" r="11" fill="#2BBBAD"/>
+    </svg>
+    <div>
+      <h1>Cleartide Autonomous Collections Agent</h1>
+      <p>Governed demo for roll-off collections. The agent recommends. Policy decides. Every step is audited.</p>
+    </div>
+  </div>
+  <nav id="nav"></nav>
+</header>
+<main>
+  <section class="view" id="view-overview"></section>
+  <section class="view" id="view-autonomous"></section>
+  <section class="view" id="view-review"></section>
+  <section class="view" id="view-blocked"></section>
+  <section class="view" id="view-audit"></section>
+  <section class="view" id="view-evaluation"></section>
+  <section class="view" id="view-traceability"></section>
+</main>
+<script>
+const PAYLOAD = __PAYLOAD__;
+const LIVE = __LIVE__;
+const VIEWS = [
+  ["overview", "01 Overview"],
+  ["autonomous", "02 Autonomous"],
+  ["review", "03 Human review"],
+  ["blocked", "04 Policy block"],
+  ["audit", "05 Audit trail"],
+  ["evaluation", "06 Evaluation"],
+  ["traceability", "07 Traceability"]
+];
+const SCENARIO_VIEW = {
+  autonomous_promise: "autonomous",
+  human_review_payment_plan: "review",
+  blocked_policy_violation: "blocked",
+  already_paid_evidence: "overview",
+  sms_quiet_hours_revision: "overview"
+};
+
+function esc(value) {
+  return String(value ?? "—")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+function pct(value) {
+  if (value === null || value === undefined) return "—";
+  return (value * 100).toFixed(1) + "%";
+}
+function stamp(verdict) {
+  const kind = verdict === "APPROVE" || verdict === "SAFE REVISION" ? "ok" : (verdict === "ESCALATE" ? "warn" : "bad");
+  return `<span class="stamp ${kind}">${esc(verdict || "PENDING")}</span>`;
+}
+function show(id) {
+  document.querySelectorAll(".view").forEach((node) => node.classList.remove("active"));
+  document.querySelectorAll("#nav button").forEach((node) => node.classList.toggle("active", node.dataset.view === id));
+  const view = document.getElementById("view-" + id);
+  if (view) view.classList.add("active");
+  history.replaceState(null, "", "#" + id);
+}
+function nav() {
+  const root = document.getElementById("nav");
+  VIEWS.forEach(([id, label]) => {
+    const button = document.createElement("button");
+    button.textContent = label;
+    button.dataset.view = id;
+    button.onclick = () => show(id);
+    root.appendChild(button);
+  });
+}
+function scenarioById(id) {
+  return (PAYLOAD.scenarios || []).find((item) => item.id === id);
+}
+function pipeline(view) {
+  if (!view) return "";
+  const steps = [
+    ["Intent", view.intent],
+    ["Tools", (view.tools || []).length + " calls"],
+    ["Evidence", (view.tools || []).length ? `${(view.tools || []).length} records` : "—"],
+    ["Risk", view.risk_band ? view.risk_band + " " + view.risk_score : "—"],
+    ["Action", view.recommended_action],
+    ["Policy", view.verdict],
+    ["Outcome", view.executed ? "Executed" : "Human handoff"],
+    ["Audit", view.audit && view.audit.audit_status]
+  ];
+  return `<div class="pipeline">${steps.map(([name, value]) => {
+    const cls = name === "Policy" && view.verdict === "ESCALATE" ? "stop" : (view.executed ? "go" : "hold");
+    return `<div class="step ${cls}"><b>${esc(name)}</b><span>${esc(value)}</span></div>`;
+  }).join("")}</div>`;
+}
+function briefCard(view) {
+  const brief = view && view.reviewer_brief;
+  if (!brief || !brief.sections) return "";
+  const sections = brief.sections.map((section) =>
+    `<p><b>${esc(section.heading)}</b><br>${esc(section.body)}</p>`
+  ).join("");
+  return `<div class="card" style="margin-top:16px;">
+    <div class="kicker">Reviewer packet</div>
+    ${sections}
+    <p class="muted">Reading grade ${esc(brief.grade)} · limit ${esc(brief.grade_limit)}. Quotes are not scored. This grade is a proxy for a human reader.</p>
+  </div>`;
+}
+function policyCard(view) {
+  const card = view && view.policy_card;
+  if (!card) return "";
+  return `<div class="card">
+    <div class="kicker">Policy source</div>
+    <p>${esc(card.statement)}</p>
+    <p class="muted">${esc(card.source_file)} · enforced by ${esc(card.enforced_by)} · version ${esc(card.policy_version)}</p>
+    <pre>${esc(JSON.stringify(card.excerpt, null, 2))}</pre>
+  </div>`;
+}
+function decisionBody(view) {
+  if (!view) return `<p class="muted">Run this scenario.</p>`;
+  const tools = (view.tools || []).map((tool) => `${tool.tool}  ${tool.status}  ${tool.highlights || ""}`).join("\n");
+  const reviewSlot = view.scenario_id === "human_review_payment_plan"
+    ? `<div id="review-anchor"></div>` : "";
+  return `${pipeline(view)}
+    ${reviewSlot}
+    ${briefCard(view)}
+    <div class="grid-2">
+      <div class="card">
+        <div class="kicker">Customer</div>
+        <p style="font-size:1.35rem;margin:8px 0;">“${esc(view.reply_text)}”</p>
+        <p class="muted">Account ${esc(view.account_id)} · Invoice ${esc(view.invoice_id)}</p>
+        ${view.injected_message_body ? `<div class="kicker">Injected agent draft</div><p>${esc(view.injected_message_body)}</p>` : ""}
+        <div class="kicker">Rationale</div>
+        <p>${esc(view.rationale)}</p>
+      </div>
+      <div class="card">
+        <div class="kicker">Governance</div>
+        <p>${stamp(view.verdict)}</p>
+        <p><b>Rule</b> ${esc((view.violated_constraints || []).join(", ") || "none — proposal approved")}</p>
+        <p><b>Fields</b> ${esc((view.violated_fields || []).join(", ") || "none")}</p>
+        <p>${esc(view.policy_explanation)}</p>
+        <p><b>Revisions</b> ${esc(view.revision_count)} ${esc(view.revision_reason || "")}</p>
+        <p><b>Final</b> ${esc(view.final_status)} / ${esc(view.final_action)}</p>
+        <p><b>${view.executed ? "Sent" : "Not sent"}</b></p>
+        <div class="kicker">Tools and evidence</div>
+        <pre>${esc(tools)}</pre>
+        ${view.message_draft ? `<div class="kicker">Draft</div><pre>${esc(view.message_draft)}</pre>` : ""}
+      </div>
+    </div>
+    ${policyCard(view)}
+    <div class="card" style="margin-top:16px;">
+      <div class="kicker">Audit timeline · decision ${esc(view.decision_id)}</div>
+      <ol class="timeline">${((view.audit || {}).timeline || []).map((step) => `<li><b>${esc(step.step)}.</b> ${esc(step.detail)}</li>`).join("")}</ol>
+    </div>`;
+}
+async function run(id) {
+  if (!LIVE) return scenarioById(id) && scenarioById(id).result;
+  const response = await fetch("/api/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenario_id: id })
+  });
+  const view = await response.json();
+  const slot = (PAYLOAD.scenarios || []).find((item) => item.id === id);
+  if (slot) slot.result = view;
+  return view;
+}
+function overview() {
+  const root = document.getElementById("view-overview");
+  root.innerHTML = `
+    <p class="kicker">Capstone walkthrough</p>
+    <h2>Collections needs judgment. It also needs a harness.</h2>
+    <p class="lede">A roll-off customer can say “I’ll pay the invoice on Friday,” “I already paid this last week,” or “I can’t pay everything today. Can I make payments?” Cleartide classifies that reply, pulls the ledger, and recommends a next step. It cannot send, promise, or threaten anything the deterministic policy does not allow.</p>
+    <div class="grid-3">
+      <div class="card"><div class="kicker">01 The agent reasons</div><p>Intent selects the tools. The draft is written from retrieved evidence, not from the customer’s sentence alone.</p></div>
+      <div class="card"><div class="kicker">02 Authority is separate</div><p>config/policy.yaml holds the limits. src/policy.py is the final authority. The recommender does not get a vote on consent, quiet hours, or threats.</p></div>
+      <div class="card"><div class="kicker">03 The record stays</div><p>Every decision is finalized once. A human disposition is appended. The original decision is not rewritten.</p></div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="kicker">Decision path</div>
+      <svg class="arch" viewBox="0 0 1100 150" role="img" aria-label="Architecture">
+        <g font-family="Segoe UI, Helvetica, sans-serif" font-size="16" text-anchor="middle">
+          ${[
+            [20, "Reply"],
+            [170, "Intent"],
+            [320, "Tools"],
+            [470, "Risk"],
+            [620, "Recommend"],
+            [790, "Policy"],
+            [960, "Audit"]
+          ].map(([x, label], index) => `<rect x="${x}" y="36" width="120" height="64" rx="14" fill="${index === 5 ? "#9a5b12" : "#163257"}"/><text x="${x + 60}" y="74" fill="white">${label}</text>`).join("")}
+          <path d="M140 68 H170 M290 68 H320 M440 68 H470 M590 68 H620 M740 68 H790 M910 68 H960" stroke="#2BBBAD" stroke-width="3" fill="none"/>
+        </g>
+      </svg>
+      <p class="muted">This is the main path. Policy either allows the step or hands it to a person. Both end in the audit. The branching diagram is in docs/architecture.md.</p>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="kicker">Also in the one-command run</div>
+      <p class="muted">These two are the evidence path and the quiet-hours revision. Tabs 02, 03, and 04 are the walkthrough.</p>
+      <p>
+        <button class="action" id="run-paid">4. Already paid, ledger checked</button>
+        <button class="action secondary" id="run-quiet">5. Quiet hours, revise to email</button>
+      </p>
+      <div id="extra-result"></div>
+    </div>
+    <div class="cue">Say: Cleartide separates intelligence from authority. Then open Autonomous.</div>`;
+  document.getElementById("run-paid").onclick = async () => {
+    const view = await run("already_paid_evidence");
+    document.getElementById("extra-result").innerHTML = decisionBody(view);
+  };
+  document.getElementById("run-quiet").onclick = async () => {
+    const view = await run("sms_quiet_hours_revision");
+    document.getElementById("extra-result").innerHTML = decisionBody(view);
+  };
+}
+function mountScenario(viewId, scenarioId, title, lede, extra) {
+  const root = document.getElementById("view-" + viewId);
+  root.innerHTML = `
+    <p class="kicker">${esc(title)}</p>
+    <h2 id="${viewId}-heading"></h2>
+    <p class="lede">${esc(lede)}</p>
+    <p><button class="action" id="run-${viewId}">Run this scenario</button></p>
+    <div id="body-${viewId}"></div>
+    ${extra || ""}
+    <div class="cue" id="cue-${viewId}"></div>`;
+  const saved = scenarioById(scenarioId);
+  if (saved && saved.result && !LIVE) {
+    paint(viewId, saved.result);
+  }
+  document.getElementById("run-" + viewId).onclick = async () => {
+    const view = await run(scenarioId);
+    paint(viewId, view);
+  };
+}
+function paint(viewId, view) {
+  document.getElementById(viewId + "-heading").textContent = view.title || "";
+  document.getElementById("body-" + viewId).innerHTML = decisionBody(view);
+  const cues = {
+    autonomous: "Say: routine promise, clean history, low risk, email approved, audit written.",
+    review: "Say: the agent can propose terms and still have no authority to offer them.",
+    blocked: "Say: the draft contained “legal action.” The rule that blocked it is PR-3, and the words live in the policy file."
+  };
+  document.getElementById("cue-" + viewId).textContent = cues[viewId] || "";
+  if (viewId === "review") mountReview(view);
+}
+function mountReview(view) {
+  const host = document.getElementById("review-anchor") || document.getElementById("body-review");
+  const box = document.createElement("div");
+  box.className = "card";
+  box.style.marginTop = "16px";
+  box.innerHTML = `
+    <div class="kicker">Reviewer action · writes an audit note, does not edit the decision</div>
+    <p>Escalation ${esc(view.escalation_id)} · choose a disposition</p>
+    <div class="pills" id="disposition-pills">
+      ${["APPROVE", "REJECT", "MODIFY", "RESOLVED"].map((item) => `<button data-code="${item}">${item}</button>`).join("")}
+    </div>
+    <p><input id="review-note" placeholder="Note for the account memory" style="font:inherit;padding:10px 12px;width:min(640px,100%);border-radius:12px;border:1px solid var(--line);" /></p>
+    <p id="review-message" class="muted"></p>
+    <p><button class="action secondary" id="rerun-review">Run the account again and show the memory</button></p>`;
+  host.appendChild(box);
+  box.querySelectorAll("button[data-code]").forEach((button) => {
+    button.onclick = async () => {
+      if (!LIVE) {
+        document.getElementById("review-message").textContent = "This backup is read-only. In the live demo the click appends a HUMAN_DISPOSITION audit note.";
+        return;
+      }
+      const response = await fetch("/api/disposition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          escalation_id: view.escalation_id,
+          disposition: button.dataset.code,
+          reviewer_note: document.getElementById("review-note").value
+        })
+      });
+      const body = await response.json();
+      document.getElementById("review-message").textContent = body.message;
+    };
+  });
+  document.getElementById("rerun-review").onclick = async () => {
+    const again = await run("human_review_payment_plan");
+    paint("review", again);
+  };
+}
+function auditView() {
+  const root = document.getElementById("view-audit");
+  const decisions = PAYLOAD.decisions || [];
+  root.innerHTML = `
+    <p class="kicker">Audit explorer</p>
+    <h2>Finalized decisions stay put.</h2>
+    <p class="lede">A completed decision cannot be rewritten through the application. Human review adds a note beside it.</p>
+    <div class="card" id="audit-list"></div>
+    <div id="audit-detail" style="margin-top:16px;"></div>
+    <div class="cue">Open a decision, then try the rewrite. The refusal is the control.</div>`;
+  renderAuditList(decisions);
+  if (!LIVE && decisions[0]) openAudit(decisions[0].decision_id);
+}
+function renderAuditList(decisions) {
+  const list = document.getElementById("audit-list");
+  if (!decisions.length) {
+    list.innerHTML = `<p class="muted">No decisions yet. Run a scenario, then come back. ${LIVE ? "" : "This backup lists the decisions captured when it was generated."}</p>`;
+    return;
+  }
+  list.innerHTML = `<table><thead><tr><th>Decision</th><th>Intent</th><th>Final action</th><th>Status</th></tr></thead><tbody>
+    ${decisions.map((item) => `<tr><td><button class="action" data-id="${item.decision_id}">${esc(item.decision_id)}</button></td><td>${esc(item.primary_intent)}</td><td>${esc(item.final_action)}</td><td>${esc(item.audit_status)}</td></tr>`).join("")}
+  </tbody></table>`;
+  list.querySelectorAll("button[data-id]").forEach((button) => {
+    button.onclick = () => openAudit(Number(button.dataset.id));
+  });
+}
+async function openAudit(decisionId) {
+  let record = (PAYLOAD.audits || {})[String(decisionId)];
+  if (LIVE) {
+    const response = await fetch("/api/audit/" + decisionId);
+    record = await response.json();
+  }
+  const detail = document.getElementById("audit-detail");
+  if (!record) {
+    detail.innerHTML = `<p>No stored audit for ${decisionId}.</p>`;
+    return;
+  }
+  const decision = record.decision || {};
+  detail.innerHTML = `
+    <div class="card">
+      <div class="kicker">Decision ${esc(decisionId)} · ${esc(decision.audit_status)} · policy ${esc(decision.policy_version)}</div>
+      <p>${esc(decision.final_reason)}</p>
+      <ol class="timeline">${(record.timeline || []).map((step) => `<li><b>${esc(step.step)}.</b> ${esc(step.detail)}</li>`).join("")}</ol>
+      <p><button class="action" id="rewrite">Attempt to rewrite this record</button></p>
+      <p id="rewrite-message" class="muted"></p>
+    </div>`;
+  document.getElementById("rewrite").onclick = async () => {
+    if (!LIVE) {
+      document.getElementById("rewrite-message").textContent = "Backup mode does not write. The live control raises AuditImmutableError and leaves the row unchanged.";
+      return;
+    }
+    const response = await fetch("/api/audit/rewrite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision_id: decisionId })
+    });
+    const body = await response.json();
+    document.getElementById("rewrite-message").textContent = body.message;
+  };
+}
+function evaluationView() {
+  const summary = ((PAYLOAD.evaluation || {}).summary) || {};
+  const root = document.getElementById("view-evaluation");
+  const fields = [
+    ["decision_accuracy", "Decision accuracy"],
+    ["policy_compliance_rate", "Policy compliance"],
+    ["policy_violation_rate", "Policy-violation rate"],
+    ["escalation_accuracy", "Escalation accuracy"],
+    ["escalation_precision", "Escalation precision"],
+    ["escalation_recall", "Escalation recall"],
+    ["failure_handling_rate", "Failure handling"],
+    ["intent_accuracy", "Intent accuracy"],
+    ["action_accuracy", "Action accuracy"],
+    ["channel_accuracy", "Channel accuracy"]
+  ];
+  const archetypes = summary.archetypes || {};
+  root.innerHTML = `
+    <p class="kicker">Synthetic evaluation</p>
+    <h2>${esc(summary.total_cases || "—")} labeled cases, run by the code.</h2>
+    <p class="lede">These numbers score the deterministic development agent. They are not a claim about a live language model, and they are not business results.</p>
+    <p class="muted" id="readability-line"></p>
+    <div class="metrics">${fields.map(([key, label]) => `<div class="card metric"><strong>${pct(summary[key])}</strong><span class="muted">${label}</span></div>`).join("")}</div>
+    <div class="card">
+      ${fields.map(([key, label]) => {
+        const value = summary[key];
+        const width = value === null || value === undefined ? 0 : Math.max(0, Math.min(1, value)) * 100;
+        return `<p style="margin:10px 0 4px;">${label}</p><div class="bar"><i style="width:${width}%"></i></div>`;
+      }).join("")}
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="kicker">By archetype</div>
+      <table><thead><tr><th>Archetype</th><th>Cases</th><th>Decision-correct</th><th>Policy violations</th></tr></thead><tbody>
+      ${Object.keys(archetypes).map((name) => {
+        const row = archetypes[name];
+        return `<tr><td>${esc(name)}</td><td>${esc(row.cases)}</td><td>${esc(row.decision_correct)}</td><td>${esc(row.policy_violations)}</td></tr>`;
+      }).join("")}
+      </tbody></table>
+    </div>
+    <div class="cue">Point at the policy-violation rate. The target for this harness is zero. The reading grade is a proxy, not a human rating.</div>`;
+  const reading = summary.reviewer_readability || {};
+  const line = document.getElementById("readability-line");
+  if (line && reading.packets) {
+    line.textContent = `Reviewer packets: ${reading.packets}. Reading grade mean ${reading.mean_grade}, max ${reading.max_grade}, limit ${reading.grade_limit}. Briefs over the limit: ${reading.briefs_failing_proxy}. Quotes are not scored.`;
+  }
+}
+function traceView() {
+  const rows = PAYLOAD.traceability || [];
+  const root = document.getElementById("view-traceability");
+  root.innerHTML = `
+    <p class="kicker">Requirements</p>
+    <h2>Each requirement points at code and a test that ran.</h2>
+    <p class="lede">Generated from pytest, not from a status someone typed. A row is passing only when every mapped test passed in that run.</p>
+    <div class="card" style="overflow:auto;">
+      <table><thead><tr><th>Requirement</th><th>Result</th><th>Tests</th></tr></thead><tbody>
+      ${rows.map((row) => `<tr><td><b>${esc(row.requirement_id)}</b><br>${esc(row.requirement_summary)}</td><td>${esc(row.result)}</td><td>${esc((row.passed_tests || []).slice(0, 6).join(", "))}${row.failed_tests && row.failed_tests.length ? " FAILED: " + esc(row.failed_tests.join(", ")) : ""}</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+    <div class="cue">If a professor asks “where is FR-5.2?”, the row names the file and the test.</div>`;
+}
+function boot() {
+  nav();
+  overview();
+  mountScenario("autonomous", "autonomous_promise", "Scenario 1", "Successful autonomous action. A promise with clean history and low risk.");
+  mountScenario("review", "human_review_payment_plan", "Scenario 2", "Mandatory human review. The agent proposes a plan. Medium-risk accounts are outside autonomous authority.");
+  mountScenario("blocked", "blocked_policy_violation", "Scenario 3", "Blocked policy violation. An unsafe draft is injected so the class can see the harness stop it.");
+  auditView();
+  evaluationView();
+  traceView();
+  const initial = (location.hash || "#overview").slice(1);
+  show(VIEWS.some(([id]) => id === initial) ? initial : "overview");
+  document.addEventListener("keydown", (event) => {
+    const index = Number(event.key) - 1;
+    if (index >= 0 && index < VIEWS.length) show(VIEWS[index][0]);
+  });
+  if (LIVE) {
+    fetch("/api/decisions").then((response) => response.json()).then((decisions) => {
+      PAYLOAD.decisions = decisions;
+      renderAuditList(decisions);
+    }).catch(() => {});
+  }
+}
+boot();
+</script>
+</body>
+</html>

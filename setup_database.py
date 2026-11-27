@@ -15,7 +15,7 @@ DB_PATH = DATA_DIR / "cleartide.db"
 # DATABASE SETUP
 # ============================================================
 
-def setup_database():
+def setup_database(db_path=None):
     """
     Create the Cleartide ACA development database from scratch.
 
@@ -27,12 +27,15 @@ def setup_database():
     - risk records
     """
 
-    DATA_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    if db_path is None:
+        from src.database import resolve_db_path
 
-    conn = sqlite3.connect(DB_PATH)
+        db_path = resolve_db_path()
+
+    db_path = Path(db_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(db_path)
 
     conn.execute(
         "PRAGMA foreign_keys = ON"
@@ -485,6 +488,12 @@ def setup_database():
 
             resolved_at TEXT,
 
+            disposition_code TEXT,
+
+            reviewer_note TEXT,
+
+            reviewed_by TEXT,
+
             FOREIGN KEY (decision_id)
                 REFERENCES agent_actions(decision_id),
 
@@ -493,6 +502,48 @@ def setup_database():
 
             FOREIGN KEY (invoice_id)
                 REFERENCES invoices(invoice_id)
+        )
+        """
+    )
+
+    escalation_columns = {
+        row[1]
+        for row in cursor.execute(
+            "PRAGMA table_info(escalations)"
+        ).fetchall()
+    }
+
+    for column_name, column_type in (
+        ("disposition_code", "TEXT"),
+        ("reviewer_note", "TEXT"),
+        ("reviewed_by", "TEXT"),
+    ):
+        if column_name not in escalation_columns:
+            cursor.execute(
+                f"ALTER TABLE escalations "
+                f"ADD COLUMN {column_name} {column_type}"
+            )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS audit_notes (
+            note_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            decision_id INTEGER,
+
+            escalation_id INTEGER,
+
+            event_type TEXT NOT NULL,
+
+            detail TEXT NOT NULL,
+
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+            FOREIGN KEY (decision_id)
+                REFERENCES agent_actions(decision_id),
+
+            FOREIGN KEY (escalation_id)
+                REFERENCES escalations(escalation_id)
         )
         """
     )
@@ -614,7 +665,7 @@ def setup_database():
 
     print(
         f"Cleartide database schema created successfully at: "
-        f"{DB_PATH}"
+        f"{db_path}"
     )
 
 
