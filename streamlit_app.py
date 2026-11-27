@@ -29,7 +29,7 @@ st.set_page_config(
     page_title="Cleartide ACA",
     page_icon="🌊",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 import plotly.graph_objects as go
@@ -46,7 +46,7 @@ from demo.console import (
     work_queue,
 )
 from demo.runner import run_scenario, scenario_by_id
-from demo.seed import build_demo_database
+from demo.seed import apply_streamlit_book_spread, build_demo_database
 from src.agent import run_aca
 from src.audit import AuditImmutableError, attempt_audit_rewrite, get_complete_audit_record
 from src.database import forget_schema_cache
@@ -70,6 +70,16 @@ VIEWS = (
 )
 
 STAGES = ("Intent", "Tools", "Risk", "Recommend", "Policy", "Audit")
+
+SHORT_VIEWS = {
+    "Live Agent Console": "Console",
+    "Reviewer Inbox": "Inbox",
+    "Audit Trail": "Audit",
+    "Evaluation": "Eval",
+    "Traceability": "Trace",
+    "Policy": "Policy",
+    "Guided walkthrough": "Guide",
+}
 
 MOMENTS = (
     {
@@ -131,6 +141,7 @@ def ensure_demo_database(db_path: str) -> str:
     os.environ["CLEARTIDE_DB_PATH"] = db_path
     forget_schema_cache(db_path)
     build_demo_database(Path(db_path))
+    apply_streamlit_book_spread(Path(db_path))
     return db_path
 
 
@@ -164,18 +175,61 @@ def _inject_css() -> None:
     st.markdown(
         """
         <style>
-        html, body, [class*="css"] { font-family: "Segoe UI", "Helvetica Neue", sans-serif; }
-        .stApp { background: radial-gradient(1200px 500px at 90% -10%, rgba(43,187,173,.16), transparent 45%), #07141f; }
-        [data-testid="stSidebar"] { background: #0b1c2c; border-right: 1px solid #1c3348; }
+        :root { color-scheme: dark; }
+        html, body, .stApp, [data-testid="stAppViewContainer"],
+        [data-testid="stHeader"], [data-testid="stToolbar"],
+        [data-testid="stDecoration"], [data-testid="stBottom"],
+        [data-testid="stSidebar"], [data-testid="stSidebarContent"],
+        section.main, .main .block-container {
+            background-color: #07141f !important;
+            color: #E7F1F4 !important;
+        }
+        .stApp {
+            background: radial-gradient(1200px 500px at 90% -10%, rgba(43,187,173,.16), transparent 45%), #07141f !important;
+        }
+        [data-testid="stHeader"], [data-testid="stDecoration"] { background: transparent !important; }
+        [data-testid="stSidebar"] { border-right: 1px solid #1c3348; }
+        h1, h2, h3, p, span, label, li { color: #E7F1F4; }
         h1, h2, h3 { letter-spacing: -0.03em; }
+        [data-testid="stCaptionContainer"] p, .stCaption { color: #9fb3c4 !important; }
+        div[data-testid="stMetric"],
+        [data-testid="stExpander"] details,
+        [data-testid="stAlert"],
+        [data-testid="stStatusWidget"],
+        [data-testid="stDataFrame"],
+        [data-testid="stJson"],
+        .stTextInput input, .stTextArea textarea,
+        [data-baseweb="select"] > div, [data-baseweb="input"] > div,
+        [data-baseweb="textarea"] textarea {
+            background-color: #12263a !important;
+            color: #E7F1F4 !important;
+            border-color: #1e3a52 !important;
+        }
         div[data-testid="stMetric"] {
-            background: #12263a;
             border: 1px solid #1e3a52;
             border-radius: 14px;
             padding: 10px 14px;
+            cursor: default;
         }
+        [data-testid="stMetricLabel"] p, [data-testid="stMetricValue"] {
+            color: #E7F1F4 !important;
+        }
+        [data-testid="stExpander"] summary, [data-testid="stExpander"] details {
+            color: #E7F1F4 !important;
+        }
+        .st-key-view-switch button {
+            background: #12263a !important;
+            color: #E7F1F4 !important;
+            border-color: #1e3a52 !important;
+        }
+        .st-key-view-switch button[aria-checked="true"],
+        .st-key-view-switch button[aria-pressed="true"] {
+            background: #134e4a !important;
+            color: #d9fffa !important;
+        }
+        button { cursor: pointer; }
         .aca-brand { display: flex; gap: 14px; align-items: center; margin-bottom: 8px; }
-        .aca-brand h1 { margin: 0; font-size: 1.8rem; }
+        .aca-brand h1 { margin: 0; font-size: 1.8rem; color: #E7F1F4; }
         .aca-brand p { margin: 2px 0 0; color: #9fb3c4; }
         .aca-card {
             background: #12263a;
@@ -183,9 +237,10 @@ def _inject_css() -> None:
             border-left: 4px solid var(--accent, #8aa0b2);
             border-radius: 14px;
             padding: 12px 14px 8px;
-            min-height: 148px;
+            min-height: 132px;
+            cursor: default;
         }
-        .aca-card strong { display: block; font-size: 1.02rem; }
+        .aca-card strong { display: block; font-size: 1.02rem; color: #E7F1F4; }
         .aca-card span { color: #9fb3c4; font-size: 0.92rem; }
         .aca-chip {
             display: inline-block;
@@ -197,25 +252,29 @@ def _inject_css() -> None:
             letter-spacing: .04em;
             color: #07141f;
             background: var(--accent, #8aa0b2);
+            cursor: default;
+            pointer-events: none;
         }
-        .aca-stepper { display: flex; gap: 8px; margin: 8px 0 12px; }
-        .aca-step {
-            flex: 1;
+        .aca-progress {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 6px 0 4px;
+        }
+        .aca-pill {
+            pointer-events: none;
+            cursor: default;
+            user-select: none;
+            border-radius: 999px;
+            padding: 3px 10px;
+            font-size: 0.78rem;
+            font-weight: 650;
             background: #102233;
             color: #8aa0b2;
-            border-radius: 12px;
-            text-align: center;
-            padding: 12px 6px;
-            font-weight: 700;
             border: 1px solid #1e3a52;
         }
-        .aca-step.on {
-            background: #134e4a;
-            color: #d9fffa;
-            border-color: #2BBBAD;
-            box-shadow: 0 0 0 1px #2BBBAD inset;
-        }
-        .aca-step.done { background: #0f3d45; color: #b7fff4; border-color: #1e8f86; }
+        .aca-pill.on { background: #134e4a; color: #d9fffa; border-color: #2BBBAD; }
+        .aca-pill.done { background: #0f3d45; color: #b7fff4; border-color: #1e8f86; }
         .aca-badge {
             display: inline-block;
             margin: 8px 0 14px;
@@ -224,12 +283,36 @@ def _inject_css() -> None:
             font-size: 1.6rem;
             font-weight: 800;
             letter-spacing: .04em;
+            cursor: default;
+            pointer-events: none;
         }
         .aca-badge.ok { background: #134e4a; color: #b7fff4; }
         .aca-badge.warn { background: #4a3414; color: #ffd7a1; }
         .aca-badge.bad { background: #4a1c24; color: #ffc1c1; }
         .aca-rule { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid #1e3a52; }
         .pass { color: #8ef0e2; } .fail { color: #ffb4b4; } .skip { color: #8aa0b2; }
+        @media (max-width: 760px) {
+            .main .block-container { padding-left: 0.8rem; padding-right: 0.8rem; }
+            [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; gap: 0.45rem; }
+            .st-key-account-board .stColumn,
+            .st-key-demo-moments .stColumn,
+            .st-key-chart-row .stColumn,
+            .st-key-stage-jumps .stColumn {
+                width: 100% !important;
+                flex: 1 1 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+            }
+            .st-key-ops-metrics .stColumn {
+                width: 48% !important;
+                flex: 1 1 46% !important;
+                min-width: 46% !important;
+                max-width: 50% !important;
+            }
+            button { min-height: 44px; }
+            .aca-card { min-height: 0; }
+            .aca-badge { font-size: 1.25rem; }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -301,8 +384,10 @@ def _run_console(account_id: int, reply: str, injected: str = None, send_time: s
     return view
 
 
-def _stepper(active: int, done: bool = False) -> str:
-    parts = ['<div class="aca-stepper">']
+def _progress(active: int, done: bool = False) -> str:
+    """Compact status marks. They are not controls."""
+
+    parts = ['<div class="aca-progress">']
     for index, name in enumerate(STAGES):
         if done or index < active:
             klass = "done"
@@ -310,9 +395,25 @@ def _stepper(active: int, done: bool = False) -> str:
             klass = "on"
         else:
             klass = ""
-        parts.append(f'<div class="aca-step {klass}">{name}</div>')
+        parts.append(f'<span class="aca-pill {klass}">{name}</span>')
     parts.append("</div>")
     return "".join(parts)
+
+
+def _stage_jumps() -> None:
+    st.caption("Open a stage")
+    with st.container(key="stage-jumps"):
+        columns = st.columns(len(STAGES))
+        for column, stage in zip(columns, STAGES):
+            if column.button(stage, key=f"jump-{stage}"):
+                st.session_state["open_stage"] = stage
+
+
+def _stage_open(name: str, default: bool) -> bool:
+    chosen = st.session_state.get("open_stage")
+    if not chosen:
+        return default
+    return chosen == name
 
 
 def _badge(label: str) -> str:
@@ -340,25 +441,27 @@ def _play(view: dict) -> None:
     with st.status("Agent is working this account…", expanded=True) as status:
         slot = st.empty()
         for index, stage in enumerate(STAGES):
-            slot.markdown(_stepper(index), unsafe_allow_html=True)
+            slot.markdown(_progress(index), unsafe_allow_html=True)
             status.write(_stage_line(view, stage))
             if delay:
                 time.sleep(delay)
-        slot.markdown(_stepper(len(STAGES), done=True), unsafe_allow_html=True)
+        slot.markdown(_progress(len(STAGES), done=True), unsafe_allow_html=True)
         status.update(label=view["decision_label"], state="complete", expanded=False)
+    st.caption("Those marks are progress, not buttons.")
     st.markdown(_badge(view["decision_label"]), unsafe_allow_html=True)
     if view.get("verdict") == "SAFE REVISION":
         st.caption(view.get("revision_reason") or "Revised once, then approved.")
     if view.get("applied"):
         st.success(f"Book updated: {view['applied']}")
+    _stage_jumps()
     _detail_expanders(view)
 
 
 def _detail_expanders(view: dict) -> None:
-    with st.expander("Intent", expanded=True):
+    with st.expander("Intent", expanded=_stage_open("Intent", True)):
         st.write(f"**{view.get('intent')}** · confidence {view.get('confidence')}")
         st.caption(view.get("reply_text") or "")
-    with st.expander("Tools", expanded=True):
+    with st.expander("Tools", expanded=_stage_open("Tools", True)):
         if not view.get("evidence_blocks"):
             st.write("No account tools ran. The reply itself was enough to stop.")
         for block in view.get("evidence_blocks") or []:
@@ -366,12 +469,12 @@ def _detail_expanders(view: dict) -> None:
             st.json(block["rows"])
         for tool in view.get("tools") or []:
             st.caption(f"{tool.get('tool')} · {tool.get('status')} · {tool.get('highlights') or ''}")
-    with st.expander("Risk", expanded=False):
+    with st.expander("Risk", expanded=_stage_open("Risk", False)):
         st.write(f"{view.get('risk_band')} · {view.get('risk_score')}")
         factors = view.get("risk_factors") or []
         if factors:
             st.write(", ".join(str(item) for item in factors))
-    with st.expander("Recommendation and draft", expanded=True):
+    with st.expander("Recommendation and draft", expanded=_stage_open("Recommend", True)):
         st.write(f"{view.get('recommended_action')} via {view.get('channel')}")
         if view.get("message_draft"):
             st.text(view["message_draft"])
@@ -380,7 +483,7 @@ def _detail_expanders(view: dict) -> None:
             st.caption("No customer draft.")
         if view.get("rationale"):
             st.write(view["rationale"])
-    with st.expander("Policy validator", expanded=True):
+    with st.expander("Policy validator", expanded=_stage_open("Policy", True)):
         st.caption(
             "Readout of where the deterministic validator stopped. "
             "It does not decide the case again."
@@ -394,7 +497,10 @@ def _detail_expanders(view: dict) -> None:
             )
     brief = view.get("reviewer_brief") or {}
     if brief.get("sections"):
-        with st.expander("Reviewer brief", expanded=view["decision_label"] != "AUTO-APPROVED"):
+        with st.expander(
+            "Reviewer brief",
+            expanded=_stage_open("Audit", view["decision_label"] != "AUTO-APPROVED"),
+        ):
             for section in brief["sections"]:
                 st.markdown(f"**{section['heading']}**")
                 st.write(section.get("body") or "")
@@ -406,7 +512,8 @@ def _detail_expanders(view: dict) -> None:
 
 def _ops_header() -> dict:
     ops = session_ops()
-    cards = st.columns(5)
+    with st.container(key="ops-metrics"):
+        cards = st.columns(5)
     cards[0].metric("Autonomous", ops["autonomous"])
     cards[1].metric("Escalated", ops["escalated"])
     cards[2].metric("Blocked", ops["blocked"])
@@ -416,7 +523,8 @@ def _ops_header() -> dict:
 
 
 def _account_board(book: list[dict]) -> None:
-    columns = st.columns(len(book) or 1)
+    with st.container(key="account-board"):
+        columns = st.columns(len(book) or 1)
     for column, row in zip(columns, book):
         accent = STATUS_COLOR.get(row["board_status"], "#8aa0b2")
         days = row["days_past_due"]
@@ -434,12 +542,13 @@ def _account_board(book: list[dict]) -> None:
                 """,
                 unsafe_allow_html=True,
             )
-            if st.button("Select", key=f"pick-{row['account_id']}"):
+            if st.button(f"Work {row['customer_name']}", key=f"pick-{row['account_id']}"):
                 st.session_state["selected_id"] = row["account_id"]
 
 
 def _charts(book: list[dict], selected: dict, ops: dict) -> None:
-    left, mid, right = st.columns(3)
+    with st.container(key="chart-row"):
+        left, mid, right = st.columns(3)
     score = float(selected.get("score") or 0)
     gauge = go.Figure(
         go.Indicator(
@@ -457,13 +566,13 @@ def _charts(book: list[dict], selected: dict, ops: dict) -> None:
             },
         )
     )
-    left.plotly_chart(_plotly_layout(gauge, 260), use_container_width=True)
+    left.plotly_chart(_plotly_layout(gauge, 260), width="stretch")
 
     frames = portfolio_frames(book)
     aging = frames["aging"] or {"No balance": 0}
     bars = go.Figure(go.Bar(x=list(aging), y=list(aging.values()), marker_color="#2BBBAD"))
     bars.update_layout(title="Open balance by aging")
-    mid.plotly_chart(_plotly_layout(bars, 260), use_container_width=True)
+    mid.plotly_chart(_plotly_layout(bars, 260), width="stretch")
 
     mix_labels = ["Autonomous", "Escalated", "Blocked"]
     mix_values = [ops["autonomous"], ops["escalated"], ops["blocked"]]
@@ -479,7 +588,7 @@ def _charts(book: list[dict], selected: dict, ops: dict) -> None:
             )
         )
         donut.update_layout(title="This session")
-        right.plotly_chart(_plotly_layout(donut, 260), use_container_width=True)
+        right.plotly_chart(_plotly_layout(donut, 260), width="stretch")
 
 
 def _page_console() -> None:
@@ -503,7 +612,8 @@ def _page_console() -> None:
         "One click prefills a real account and runs the agent. "
         "Threat language replaces the draft so the policy block is visible. Free text still works."
     )
-    moment_cols = st.columns(len(MOMENTS))
+    with st.container(key="demo-moments"):
+        moment_cols = st.columns(len(MOMENTS))
     chosen = None
     for column, moment in zip(moment_cols, MOMENTS):
         if column.button(moment["label"], key=moment["key"]):
@@ -541,6 +651,7 @@ def _page_console() -> None:
                     injected=(moment or {}).get("injected"),
                     send_time=(moment or {}).get("send_time"),
                 )
+                st.session_state["open_stage"] = None
                 st.session_state["console_view"] = view
                 if moment and moment.get("note"):
                     st.caption(moment["note"])
@@ -550,10 +661,10 @@ def _page_console() -> None:
                 st.error(f"The agent stopped with an error and did not send: {exc}")
     elif st.session_state.get("console_view"):
         saved = st.session_state["console_view"]
-        st.markdown(_stepper(len(STAGES), done=True), unsafe_allow_html=True)
         st.markdown(_badge(saved["decision_label"]), unsafe_allow_html=True)
         if saved.get("applied"):
             st.success(f"Book updated: {saved['applied']}")
+        _stage_jumps()
         _detail_expanders(saved)
 
     with st.expander("About this demo"):
@@ -740,7 +851,7 @@ def _page_evaluation() -> None:
     values = [summary.get(key) or 0 for key, _ in metrics]
     chart = go.Figure(go.Bar(x=names, y=values, marker_color="#2BBBAD"))
     chart.update_layout(title="Evaluation metrics", yaxis_range=[0, 1])
-    st.plotly_chart(_plotly_layout(chart, 320), use_container_width=True)
+    st.plotly_chart(_plotly_layout(chart, 320), width="stretch")
     reading = summary.get("reviewer_readability") or {}
     if reading:
         st.caption(
@@ -853,14 +964,40 @@ def _page_guided() -> None:
     _scenario_panel("sms_quiet_hours_revision", run_key="run-quiet")
 
 
+def _sync_switch_to_sidebar() -> None:
+    value = st.session_state.get("view-switch")
+    if value in VIEWS:
+        st.session_state["walkthrough"] = value
+
+
+def _sync_sidebar_to_switch() -> None:
+    value = st.session_state.get("walkthrough")
+    if value in VIEWS:
+        st.session_state["view-switch"] = value
+
+
 def main() -> None:
     ensure_demo_database(str(DB_PATH))
     _inject_css()
     st.sidebar.title("Cleartide")
-    st.sidebar.caption("Working book. Not a slide.")
-    choice = st.sidebar.radio("Walkthrough", VIEWS, key="walkthrough")
+    st.sidebar.caption("Same pages as the View bar. On a phone, use the bar.")
+    choice = st.sidebar.radio(
+        "Walkthrough",
+        VIEWS,
+        key="walkthrough",
+        on_change=_sync_sidebar_to_switch,
+    )
     if st.sidebar.button("Reset demo", key="reset-demo"):
         _reset_demo()
+    st.segmented_control(
+        "View",
+        VIEWS,
+        key="view-switch",
+        default=VIEWS[0],
+        on_change=_sync_switch_to_sidebar,
+        format_func=lambda name: SHORT_VIEWS[name],
+        wrap=True,
+    )
     pages = {
         "Live Agent Console": _page_console,
         "Reviewer Inbox": _page_inbox,

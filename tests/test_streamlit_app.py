@@ -5,6 +5,8 @@ from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
+from demo.seed import build_demo_database
+
 
 APP = Path(__file__).resolve().parents[1] / "streamlit_app.py"
 VIEWS = (
@@ -16,6 +18,23 @@ VIEWS = (
     "Policy",
     "Guided walkthrough",
 )
+
+
+def test_eval_seed_keeps_original_due_dates(tmp_path, monkeypatch):
+    database = tmp_path / "plain.db"
+    monkeypatch.setenv("CLEARTIDE_DB_PATH", str(database))
+    build_demo_database(database)
+    from src.database import get_connection
+
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT due_date, amount FROM invoices WHERE account_id = 8801004"
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row["due_date"] == "2026-11-15"
+    assert row["amount"] == 2400.0
 
 
 def _assert_clean(app: AppTest) -> None:
@@ -85,6 +104,9 @@ def test_live_console_outcomes(tmp_path, monkeypatch):
         app.run()
         _assert_clean(app)
         assert app.sidebar.radio(key="walkthrough").value == "Live Agent Console"
+        opening = _page_text(app)
+        for label in ("12d past due", "35d past due", "62d past due", "95d past due"):
+            assert label in opening
 
         app.button(key="moment-promise").click().run()
         _assert_clean(app)

@@ -1,7 +1,7 @@
 """Build a fresh isolated demo database. Never touches the historical fixture DB."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from demo.fixtures import demo_accounts
@@ -167,3 +167,38 @@ def build_demo_database(path: Path) -> Path:
         conn.close()
 
     return path
+
+
+# Display-only spread for the Streamlit book. Risk, consent, and replies stay
+# as the fixtures defined them, so the five class outcomes do not change.
+# Synthetic evaluation never calls this.
+STREAMLIT_BOOK_SPREAD = (
+    {"account_id": 8801001, "days_past_due": 12, "amount": 1800.0},
+    {"account_id": 8801002, "days_past_due": 35, "amount": 6400.0},
+    {"account_id": 8801003, "days_past_due": 62, "amount": 3150.0},
+    {"account_id": 8801004, "days_past_due": 95, "amount": 9750.0},
+    {"account_id": 8801005, "days_past_due": 18, "amount": 2250.0},
+)
+
+
+def apply_streamlit_book_spread(path: Path) -> None:
+    """Vary aging and balances on the five console accounts only."""
+
+    forget_schema_cache(path)
+    today = datetime.now(timezone.utc).date()
+    conn = get_connection()
+    try:
+        for row in STREAMLIT_BOOK_SPREAD:
+            due = today - timedelta(days=row["days_past_due"])
+            issue = due - timedelta(days=30)
+            conn.execute(
+                """
+                UPDATE invoices
+                SET amount = ?, due_date = ?, issue_date = ?
+                WHERE account_id = ?
+                """,
+                (row["amount"], due.isoformat(), issue.isoformat(), row["account_id"]),
+            )
+        conn.commit()
+    finally:
+        conn.close()

@@ -60,7 +60,7 @@ streamlit run streamlit_app.py --server.headless true
 
 ## Five-minute walkthrough
 
-Open the Streamlit app. The first screen is the live book, not a slide.
+Open the Streamlit app. The first screen is the live book, not a slide. On a phone the sidebar starts closed; the View bar at the top switches pages.
 
 | Time | What to do |
 |---|---|
