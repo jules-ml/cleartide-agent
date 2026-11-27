@@ -100,7 +100,11 @@ MOMENTS = (
         "account_id": 8801003,
         "reply": "I'll pay the invoice on Friday.",
         "injected": "Failure to pay may result in legal action.",
-        "note": "Replaces the draft with unauthorized consequence language so PR-3 can stop it.",
+        "note": (
+            "The customer reply is a benign promise: “I'll pay the invoice on Friday.” "
+            "This demo injects the outbound draft “Failure to pay may result in legal action.” "
+            "The policy validator blocks that injected draft, regardless of what the agent drafted."
+        ),
     },
     {
         "key": "moment-paid",
@@ -379,6 +383,7 @@ def _run_console(account_id: int, reply: str, injected: str = None, send_time: s
     view["evidence_blocks"] = evidence_blocks(result)
     view["readout"] = policy_readout(view)
     view["applied"] = apply_approved_outcome(view, result)
+    view["injected_message_body"] = injected
     draft = view.get("message_draft") or ""
     view["draft_grade"] = flesch_kincaid_grade(draft) if draft else None
     return view
@@ -436,6 +441,20 @@ def _stage_line(view: dict, stage: str) -> str:
     return f"Audit decision {view.get('decision_id')}"
 
 
+def _injection_callout(view: dict) -> None:
+    injected = (view.get("injected_message_body") or "").strip()
+    if not injected:
+        return
+    reply = view.get("reply_text") or ""
+    st.warning(
+        "The customer reply is a benign promise: "
+        f"“{reply}”. "
+        "The demo injected this outbound draft so the policy validator would see it: "
+        f"“{injected}”. "
+        "The block does not depend on the draft the agent would have written."
+    )
+
+
 def _play(view: dict) -> None:
     delay = _stage_delay()
     with st.status("Agent is working this account…", expanded=True) as status:
@@ -447,6 +466,7 @@ def _play(view: dict) -> None:
                 time.sleep(delay)
         slot.markdown(_progress(len(STAGES), done=True), unsafe_allow_html=True)
         status.update(label=view["decision_label"], state="complete", expanded=False)
+    _injection_callout(view)
     st.caption("Those marks are progress, not buttons.")
     st.markdown(_badge(view["decision_label"]), unsafe_allow_html=True)
     if view.get("verdict") == "SAFE REVISION":
@@ -589,29 +609,52 @@ def _charts(book: list[dict], selected: dict, ops: dict) -> None:
         )
         donut.update_layout(title="This session")
         right.plotly_chart(_plotly_layout(donut, 260), width="stretch")
+        right.caption(
+            "Session mix: "
+            f"{ops['autonomous']} autonomous, "
+            f"{ops['escalated']} escalated, "
+            f"{ops['blocked']} blocked."
+        )
 
 
-def _page_console() -> None:
-    _brand()
-    ops = _ops_header()
+def _refresh_book(ops_slot, board_slot, meta_slot, chart_slot) -> None:
+    """Draw counters, cards, and the mix from the database after this run."""
+
     book = work_queue()
     if not book:
-        st.error("The demo book is empty. Use Reset demo.")
+        ops_slot.error("The demo book is empty. Use Reset demo.")
         return
-    st.subheader("Open book")
-    _account_board(book)
+    with board_slot.container():
+        _account_board(book)
     selected_id = st.session_state.get("selected_id", book[0]["account_id"])
     if selected_id not in {row["account_id"] for row in book}:
         selected_id = book[0]["account_id"]
     selected = next(row for row in book if row["account_id"] == selected_id)
-    st.caption(f"Working {selected['customer_name']} · invoice {selected['invoice_id']}")
-    _charts(book, selected, ops)
+    with ops_slot.container():
+        ops = _ops_header()
+    with meta_slot.container():
+        st.caption(f"Working {selected['customer_name']} · invoice {selected['invoice_id']}")
+    with chart_slot.container():
+        _charts(book, selected, ops)
+
+
+def _page_console() -> None:
+    _brand()
+    if not work_queue():
+        st.error("The demo book is empty. Use Reset demo.")
+        return
+    ops_slot = st.empty()
+    st.subheader("Open book")
+    board_slot = st.empty()
+    meta_slot = st.empty()
+    chart_slot = st.empty()
 
     st.subheader("Demo moments")
     st.caption(
-        "One click prefills a real account and runs the agent. "
-        "Threat language replaces the draft so the policy block is visible. Free text still works."
+        "One click prefills a real account and runs the agent. Free text still works."
     )
+    threat = next(item for item in MOMENTS if item["key"] == "moment-block")
+    st.warning(threat["note"])
     with st.container(key="demo-moments"):
         moment_cols = st.columns(len(MOMENTS))
     chosen = None
@@ -638,6 +681,7 @@ def _page_console() -> None:
     pending = st.session_state.pop("pending_moment", None)
     run_free = st.button("Run agent", key="run-agent", type="primary")
     moment = next((item for item in MOMENTS if item["key"] == pending), None)
+    selected_id = st.session_state.get("selected_id") or work_queue()[0]["account_id"]
     if pending or run_free:
         text = (moment or {}).get("reply") or (reply or "").strip()
         account_id = (moment or {}).get("account_id") or selected_id
@@ -653,14 +697,13 @@ def _page_console() -> None:
                 )
                 st.session_state["open_stage"] = None
                 st.session_state["console_view"] = view
-                if moment and moment.get("note"):
-                    st.caption(moment["note"])
                 _play(view)
             except Exception as exc:
                 st.session_state.pop("console_view", None)
                 st.error(f"The agent stopped with an error and did not send: {exc}")
     elif st.session_state.get("console_view"):
         saved = st.session_state["console_view"]
+        _injection_callout(saved)
         st.markdown(_badge(saved["decision_label"]), unsafe_allow_html=True)
         if saved.get("applied"):
             st.success(f"Book updated: {saved['applied']}")
@@ -674,6 +717,8 @@ def _page_console() -> None:
             "src/policy.py, decides. This console is the working book. "
             "The guided scenarios are still on the last sidebar page."
         )
+
+    _refresh_book(ops_slot, board_slot, meta_slot, chart_slot)
 
 
 def _page_inbox() -> None:

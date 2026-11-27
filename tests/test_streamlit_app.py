@@ -87,6 +87,12 @@ def test_streamlit_app_views_and_reviewer_flow(tmp_path, monkeypatch):
         forget_schema_cache()
 
 
+def _metric_value(app: AppTest, label: str) -> str:
+    values = [metric.value for metric in app.metric if metric.label == label]
+    assert values, label
+    return values[-1]
+
+
 def _page_text(app: AppTest) -> str:
     chunks = []
     for group in (app.markdown, app.success, app.info, app.caption, app.warning, app.error):
@@ -111,6 +117,11 @@ def test_live_console_outcomes(tmp_path, monkeypatch):
         app.button(key="moment-promise").click().run()
         _assert_clean(app)
         assert "AUTO-APPROVED" in _page_text(app)
+        assert "No decisions yet this session" not in _page_text(app)
+        assert _metric_value(app, "Autonomous") == "1"
+        assert "1 autonomous, 0 escalated, 0 blocked" in _page_text(app)
+        northline = [block.value for block in app.markdown if "Northline" in block.value]
+        assert any("AUTO-APPROVED" in value for value in northline)
 
         app.button(key="moment-plan").click().run()
         _assert_clean(app)
@@ -129,8 +140,16 @@ def test_live_console_outcomes(tmp_path, monkeypatch):
         app.sidebar.radio(key="walkthrough").set_value("Live Agent Console").run()
         app.button(key="moment-block").click().run()
         _assert_clean(app)
-        assert "BLOCKED" in _page_text(app)
-        assert "PR-3" in _page_text(app)
+        blocked_page = _page_text(app)
+        assert "BLOCKED" in blocked_page
+        assert "PR-3" in blocked_page
+        assert "No decisions yet this session" not in blocked_page
+        assert _metric_value(app, "Blocked") == "1"
+        assert "benign promise" in blocked_page
+        assert "Failure to pay may result in legal action." in blocked_page
+        assert "regardless of what the agent drafted" in blocked_page
+        harbor = [block.value for block in app.markdown if "Harbor Dumpster" in block.value]
+        assert any("BLOCKED" in value for value in harbor)
 
         app.text_area(key="console-reply").set_value("Hello, just checking in.").run()
         app.button(key="run-agent").click().run()
