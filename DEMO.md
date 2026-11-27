@@ -40,6 +40,24 @@ python run_demo.py --serve
 
 If the live server fails, open `docs/backup/demo_report.html` in a browser. It already contains the scenario results, the evaluation summary, and the traceability rows from the last generation. Disposition clicks are disabled there. The transcript at `docs/backup/transcript.md` states what the live click writes. Screenshots of the seven views are in `docs/backup/screenshots/`.
 
+## Live demo (Streamlit)
+
+Placeholder until the Cloud app is deployed: <https://cleartide-aca.streamlit.app>
+
+| Setting | Value |
+|---|---|
+| Repository | `jules-ml/cleartide-agent` |
+| Main file | `streamlit_app.py` |
+| Python | 3.12 |
+
+Deploy this branch, `cursor/capstone-demo-61e7`, until it is merged. After merge, deploy `main`. The app creates `data/streamlit_demo.db` on startup, so `setup_database.py` and `seed_data.py` are not required there. No secrets and no API key. Reviewer notes stay until **Reset demo** rebuilds that database. `runtime.txt` records 3.12; choose the same version in the Streamlit deploy dialog.
+
+Run it locally with:
+
+```bash
+streamlit run streamlit_app.py --server.headless true
+```
+
 ## Five-minute walkthrough
 
 | Time | View | What to say |

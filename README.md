@@ -24,7 +24,15 @@ python run_demo.py --serve
 
 `seed_data.py` loads the historical fixture into `data/cleartide.db`. Run it once. A second run inserts duplicate payments, promises, and delivery rows. The class demo rebuilds a separate file, `data/demo_cleartide.db`.
 
-The dashboard is at <http://127.0.0.1:8765>. Keys 1 through 7 switch views. If the server will not start, open [docs/backup/demo_report.html](docs/backup/demo_report.html).
+The local dashboard is at <http://127.0.0.1:8765>. Keys 1 through 7 switch views. If the server will not start, open [docs/backup/demo_report.html](docs/backup/demo_report.html).
+
+## Live demo (Streamlit)
+
+Placeholder until the Cloud app is deployed: <https://cleartide-aca.streamlit.app>
+
+Deploy from [jules-ml/cleartide-agent](https://github.com/jules-ml/cleartide-agent). Main file: `streamlit_app.py`. Choose Python 3.12. The app builds its own demo database on startup. It does not use secrets or an API key. `runtime.txt` pins 3.12 for hosts that still read that file; the Streamlit deploy dialog is the setting that matters.
+
+The published URL above is a placeholder. Confirm it after the app is created. Until this branch is merged, point the deploy at branch `cursor/capstone-demo-61e7`. After merge, use `main`.
 
 ## Where to read next
 

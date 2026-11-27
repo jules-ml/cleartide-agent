@@ -8,3 +8,4 @@
 - Added the local dashboard, the five class scenarios, the synthetic evaluation, the generated traceability matrix, and the offline backup.
 - FR-6.4 is covered by proxy checks on the review brief: required sections, a plain gloss for every code, no JSON in the brief, and a Flesch-Kincaid grade at or below 8.
 - Presentation polish: root README aligned with DEMO.md, audit timeline written in plain lines instead of raw JSON, and decision cleanup deletes audit notes before parent rows so a fresh database still passes.
+- Added `streamlit_app.py` for Streamlit Community Cloud. It builds the demo database on startup and reuses the existing agent.
